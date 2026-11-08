@@ -1,47 +1,42 @@
-# Aufgabenimport aus ChatGPT, E-Mails oder anderen Agenten
+# Importing tasks from AI agents, emails and Polybox (English)
 
-## Schnellstart (ohne Mail-Integration)
+**Deutsch:** [IMPORT.de.md](IMPORT.de.md) · [English agent instructions](../AGENTS.md) · [German agent instructions](../AGENTS.de.md)
 
-1. Leite eine E-Mail an ChatGPT weiter oder kopiere ihren Text und nutze [`prompts/email-to-tasks.md`](../prompts/email-to-tasks.md).
-2. Bitte um eine **JSON-Datei** gemäß [`AGENTS.md`](../AGENTS.md). Ein Beispiel ist [`examples/email-task-import.json`](../examples/email-task-import.json).
-3. Importiere die Datei unter **Einstellungen → Import → Aufgaben-JSON importieren**. Alternativ kopiere sie nach `data/inbox/<benutzername>/`.
-4. Nach einigen Sekunden erscheinen neue Karten unter **Kanban → Geplant**. Neue Fächer oder Tags werden bei Bedarf automatisch angelegt.
+## Quick setup
 
-Die App prüft den Inbox-Ordner alle vier Sekunden. Eine Datei muss mindestens drei Sekunden lang unverändert sein, damit ein halbfertiger Polybox-Sync nicht als Importfehler gilt.
+1. Copy an email or assignment sheet to ChatGPT or another authorized agent using [the English prompt](../prompts/email-to-tasks.md).
+2. Ask for **only** an import JSON object in the stable `studytracker.tasks.v1` format. Example: [`examples/email-task-import.json`](../examples/email-task-import.json).
+3. Save the JSON as a file and either upload it in **Settings → Import → Import tasks JSON** or put it into the private local sync directory `data/inbox/<username>/`.
+4. Keep StudyTracker running. It detects stable `.json` files every ~4 seconds, validates them as an atomic batch, adds only unseen task IDs and moves processed/rejected files accordingly.
 
-## Minimaler Beispieldatensatz
+## Example with independent subtasks
 
 ```json
 {
   "format": "studytracker.tasks.v1",
-  "batch_id": "mail-kurs-2026-11-08-uebungen",
+  "batch_id": "source-mail-42-v1",
   "tasks": [
-    {"external_id": "kurs-2026-11-08:1", "subject": "Mathematik", "title": "Blatt 6 lösen", "planned_minutes": 75, "priority": "normal", "due_date": null, "tags": ["Übungsblatt"]}
+    {"external_id":"mail-42:1","subject":"Mathematik","semester":"Fall 2026","title":"Assignment 1","planned_minutes":120},
+    {"external_id":"mail-42:1:B","parent_external_id":"mail-42:1","subject":"Mathematik","semester":"Fall 2026","title":"Part B","planned_minutes":30,"planned_for":null},
+    {"external_id":"mail-42:1:C","parent_external_id":"mail-42:1","subject":"Mathematik","semester":"Fall 2026","title":"Part C","planned_minutes":null}
   ]
 }
 ```
 
-Das ist das verbindliche Austauschformat. `external_id` wird innerhalb eines Benutzerprofils zum dauerhaften Duplikatabgleich verwendet, und `batch_id` wird für vollständige Importdateien geprüft. Ein zweiter Import derselben Datei erzeugt **keine doppelten Aufgaben**.
+All tasks are independently visible on Kanban. Parent links are resolved even when the parent appears after its children in the JSON. To avoid an ambiguous subject with the same name in several semesters, specify the `semester` name. If absent and there is exactly one matching subject, the existing subject is used.
 
-## Ein einziges Terminalkommando
+`planned_minutes` may be omitted/null; estimates do not have to be made up. New tasks are created in `todo` and never carry completed status or actual study time. `external_id` identifies a task across batches; `batch_id` identifies an entire source import. Use stable IDs to ensure idempotence.
+
+## From a terminal
 
 ```bash
-python3 scripts/add_tasks.py --user alex --file ~/Downloads/aufgaben.json
+python3 scripts/add_tasks.py --user alex --file ~/Downloads/tasks.json
 ```
 
-Dieser Helfer schreibt zuerst einen temporären Dateinamen und benennt ihn atomar in `.json` um. Er startet die App nicht selbst. Die App muss für den automatischen Import laufen. Alternativ `python3 server.py --import-once`, wenn keine andere StudyTracker-Instanz dieselben Daten bearbeitet.
+This safely stages a temporary file then renames it to `.json`. It does not retrieve email and it does not run the app. The app must be running for automated imports, or run `python3 server.py --import-once` when no other instance is active.
 
-## Was ist wirklich automatisiert?
+## Privacy, sync, limitations
 
-- Das **Einlesen** einer bereits vorhandenen Importdatei ist automatisch, solange StudyTracker läuft.
-- Das **Extrahieren aus einer Mail** erfordert einen Agenten mit Zugriff auf die Mail (oder manuelles Einfügen in ChatGPT).
-- Das **Ablegen auf Polybox** erfordert Schreibzugriff auf den synchronisierten lokalen Ordner. Das ist ohne separate Integration nicht automatisch aus einem ChatGPT-Chat heraus möglich.
-- Keine SMTP-, IMAP- oder Gmail-Zugangsdaten müssen im StudyTracker gespeichert werden.
+Polybox only synchronizes local files. Writing into `data/inbox/` requires a program/agent with actual access to that directory; an ordinary ChatGPT conversation cannot place files there automatically. The app does not connect to Gmail/Outlook/IMAP or store mailbox credentials. Any email integration must be separately authorized.
 
-Ein externer Workflow (z. B. E-Mail-Connector + genehmigte Automatisierung auf deinem eigenen Rechner) kann die JSON-Datei automatisch nach `data/inbox/<user>/` schreiben. Dieser Workflow ist **nicht** Teil der App, denn Mailzugang erfordert eine separate ausdrückliche Einrichtung.
-
-## Fehlerdiagnose
-
-Fehlerhafte oder nicht valide JSON-Dateien landen in `data/inbox/<user>/rejected/` mit derselben Basis und einer `.error.txt`. Erfolgreiche Dateien wandern nach `processed/`. Ungültige Aufgaben in einer Datei sorgen dafür, dass **die ganze Importdatei zurückgewiesen wird**, sodass kein Teilzustand entsteht.
-
-Begrenzungen: 1 MB pro Inbox-JSON, maximal 150 Aufgaben pro Datei. IDs und Texte werden validiert, HTML im Browser entschärft, **nichts wird aus dem importierten Text ausgeführt**.
+Rejected input is moved to `data/inbox/<username>/rejected/` with a `.error.txt` explanation; accepted input goes to `processed/`. The entire batch is validated before committing changes. File limit: 1 MB; 1–150 tasks per file. JSON is treated as data and never executed as code. The importer does not silently update existing tasks.

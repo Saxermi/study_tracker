@@ -1,17 +1,16 @@
-# Changelog
+# Changelog (English)
 
-## 2.0.0 — 2026-11-08
+## 3.0 — Linked tasks, bilingual UI and theme
 
-- Kanban-Board mit Aufgaben, Fächern, Prioritäten, Status und Fälligkeiten
-- Zeitbudget pro Aufgabe und mehrteilige Zeiterfassung
-- Soll-/Ist-Statistik, aggregierte Abweichung und kumulierter Verlauf
-- Echte Lernpausen (Start/Ende/Dauer), getrennt von Unterbrechungen
-- Mehrere lokale Benutzerkonten mit Passwort-Hashing und eigenständigen Profilen
-- JSON-Agentenimport, automatische Polybox-Inbox, Duplikaterkennung
-- CSV-Export für Aufgaben und Sessions inklusive Pausenzeiten
-- JSON-Backups je Profil, tägliche Sicherungen, V1-Migrationspfad
-- Überarbeitetes responsives Webdesign, Entwicklerdokumentation und Tests
+- Separate Kanban cards for subtasks, linked to parents through `parent_id`.
+- Bidirectional parent/child completion, independent timer and Today selection.
+- Optional time estimates; parent roll-up statistics avoid double counting.
+- JSON task import supports stable `parent_external_id` and optional `semester`, with validation and deduplication.
+- Semesters for grouping subjects and optional per-subject/global weekly goals.
+- Functional custom subject color picker and fixed CSP for dynamic color styles.
+- Day planner, German/English UI, light/dark mode and browser favicon.
+- Extended CSV columns, backward-compatible JSON profiles, bilingual docs and regression tests.
 
-## Hinweise zum Upgrade
+## 2.x — Initial study tracker
 
-StudyTracker v1 hat `data/state.json` verwendet. Beim Einrichten des **ersten Kontos** kann v2 diese Datei übernehmen, wenn sie sich im Datenordner befindet. Die Originaldatei bleibt zusätzlich als `legacy-state-v1.json` erhalten. Bitte vorher ein manuelles Backup erstellen.
+- Kanban, multi-user profiles, timer with breaks, analytics, JSON/CSV exports and task inbox.

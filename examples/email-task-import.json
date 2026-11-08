@@ -5,22 +5,49 @@
     {
       "external_id": "demo-mail-analysis-2026-11-08:1",
       "subject": "Mathematik",
-      "title": "Analysis: Übungsblatt 5 lösen",
-      "description": "Aufgaben 1–4 bearbeiten und Lösungsweg prüfen.",
-      "planned_minutes": 90,
+      "semester": "Herbstsemester 2026",
+      "title": "Übungsblatt 5 bearbeiten",
+      "description": "Abschnitte B, C und D der Übungsserie lösen",
+      "planned_minutes": 120,
       "priority": "high",
       "due_date": "2026-11-18",
-      "tags": ["Übungsblatt", "Aus E-Mail"]
+      "tags": [
+        "Übungsblatt",
+        "Aus E-Mail"
+      ]
     },
     {
-      "external_id": "demo-mail-analysis-2026-11-08:2",
+      "external_id": "demo-mail-analysis-2026-11-08:1:B",
+      "parent_external_id": "demo-mail-analysis-2026-11-08:1",
       "subject": "Mathematik",
-      "title": "Tutoriumsfragen zum Übungsblatt vorbereiten",
-      "description": "Unklare Schritte notieren und Fragen formulieren.",
+      "semester": "Herbstsemester 2026",
+      "title": "Teil B lösen",
+      "planned_minutes": 35,
+      "tags": [
+        "Übungsblatt"
+      ]
+    },
+    {
+      "external_id": "demo-mail-analysis-2026-11-08:1:C",
+      "parent_external_id": "demo-mail-analysis-2026-11-08:1",
+      "subject": "Mathematik",
+      "semester": "Herbstsemester 2026",
+      "title": "Teil C lösen",
+      "planned_minutes": null,
+      "tags": [
+        "Übungsblatt"
+      ]
+    },
+    {
+      "external_id": "demo-mail-analysis-2026-11-08:1:D",
+      "parent_external_id": "demo-mail-analysis-2026-11-08:1",
+      "subject": "Mathematik",
+      "semester": "Herbstsemester 2026",
+      "title": "Teil D prüfen",
       "planned_minutes": 25,
-      "priority": "normal",
-      "due_date": null,
-      "tags": ["Wiederholung", "Aus E-Mail"]
+      "tags": [
+        "Übungsblatt"
+      ]
     }
   ]
 }

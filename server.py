@@ -85,6 +85,22 @@ def number(value, label="Zahl", lo=0, hi=100000) -> int:
         err(f"{label} muss eine ganze Zahl zwischen {lo} und {hi} sein.")
 
 
+def optional_goal(value, label="Wochenziel"):
+    """No weekly target is a normal, supported state; 0 means unset for legacy data."""
+    if value is None or value == "" or value == 0:
+        return None
+    return number(value, label, 1, 10080)
+
+
+def semester_id(state, value):
+    if value is None or value == "":
+        return None
+    sid = txt(value, "Semester-ID", 80, True)
+    if not any(x["id"] == sid for x in state.get("semesters", [])):
+        err("Semester nicht gefunden.", 404)
+    return sid
+
+
 def check_color(v):
     if not isinstance(v, str) or not re.fullmatch(r"#[a-fA-F0-9]{6}", v):
         err("Ungültige Farbe.")
@@ -156,15 +172,15 @@ def accounts():
 
 def blank_profile():
     return {"version": 2, "subjects": [
-        {"id": "mathe", "name": "Mathematik", "color": COLORS[0], "weekly_goal_minutes": 300, "archived": False},
-        {"id": "info", "name": "Informatik", "color": COLORS[1], "weekly_goal_minutes": 240, "archived": False},
-        {"id": "physik", "name": "Physik", "color": COLORS[2], "weekly_goal_minutes": 180, "archived": False},
+        {"id": "mathe", "name": "Mathematik", "color": COLORS[0], "weekly_goal_minutes": None, "semester_id": None, "archived": False},
+        {"id": "info", "name": "Informatik", "color": COLORS[1], "weekly_goal_minutes": None, "semester_id": None, "archived": False},
+        {"id": "physik", "name": "Physik", "color": COLORS[2], "weekly_goal_minutes": None, "semester_id": None, "archived": False},
     ], "tags": [
         {"id": "uebungen", "name": "Übungen", "color": COLORS[0]},
         {"id": "lesen", "name": "Neuer Stoff", "color": COLORS[1]},
         {"id": "wiederholen", "name": "Wiederholung", "color": COLORS[2]},
         {"id": "pruefung", "name": "Prüfung", "color": COLORS[4]},
-    ], "tasks": [], "sessions": [], "active_timer": None, "settings": {"weekly_goal_minutes": 900}, "imports": []}
+    ], "semesters": [], "tasks": [], "sessions": [], "active_timer": None, "settings": {"weekly_goal_minutes": None}, "imports": []}
 
 
 def migrate_v1_if_needed() -> dict:
@@ -196,6 +212,15 @@ def load_profile(user_id: str):
     data = read_json(p, {})
     if data.get("version") != 2:
         err("Profilformat nicht unterstützt.", 500)
+    # Non-destructive migration for existing v2 accounts and JSON files.
+    data.setdefault("semesters", [])
+    data.setdefault("settings", {}).setdefault("weekly_goal_minutes", None)
+    for sub in data.get("subjects", []):
+        sub.setdefault("semester_id", None)
+        sub.setdefault("weekly_goal_minutes", None)
+    for t in data.get("tasks", []):
+        t.setdefault("parent_id", None)
+        t.setdefault("planned_for", None)
     return data
 
 
@@ -305,18 +330,80 @@ def valid_tags(state, values):
     return list(dict.fromkeys(values))
 
 
+def validate_parent(state, parent_id, task_id=None, subject_id=None):
+    """Only one level of child tasks; all children share the parent's subject."""
+    if parent_id is None or parent_id == "":
+        return None
+    pid = txt(parent_id, "Hauptaufgaben-ID", 80, True)
+    if pid == task_id:
+        err("Eine Aufgabe kann nicht ihre eigene Hauptaufgabe sein.")
+    parent = task(state, pid)
+    if parent.get("parent_id"):
+        err("Unteraufgaben können keine weiteren Unteraufgaben enthalten.")
+    if task_id and any(t.get("parent_id") == task_id for t in state["tasks"]):
+        err("Eine Hauptaufgabe mit Unteraufgaben kann nicht selbst Unteraufgabe werden.")
+    if parent["subject_id"] != subject_id:
+        err("Hauptaufgabe und Unteraufgabe müssen zum gleichen Fach gehören.")
+    return pid
+
+
+def update_task_status(state, row, new_status):
+    """Apply bidirectional parent/child completion without changing unrelated children."""
+    when = iso()
+    status_changed = row["status"] != new_status
+    if status_changed:
+        row["status"] = new_status
+        row["completed_at"] = when if new_status == "done" else None
+        row["updated_at"] = when
+    children = [t for t in state["tasks"] if t.get("parent_id") == row["id"]]
+    if children and status_changed and new_status in ("done", "todo"):
+        # Only explicitly completing or reopening the parent cascades to its children.
+        # Moving it to in-progress, or editing metadata, preserves child states.
+        for child in children:
+            child_status = new_status
+            if child["status"] != child_status:
+                child["status"] = child_status
+                child["completed_at"] = when if child_status == "done" else None
+                child["updated_at"] = when
+    if row.get("parent_id"):
+        parent = task(state, row["parent_id"])
+        siblings = [t for t in state["tasks"] if t.get("parent_id") == parent["id"]]
+        desired = "done" if all(t["status"] == "done" for t in siblings) else "doing" if any(t["status"] != "todo" for t in siblings) else "todo"
+        if parent["status"] != desired:
+            parent["status"] = desired
+            parent["completed_at"] = when if desired == "done" else None
+            parent["updated_at"] = when
+
+
+def reconcile_parent(state, parent_id):
+    if not parent_id:
+        return
+    parent = task(state, parent_id)
+    siblings = [t for t in state["tasks"] if t.get("parent_id") == parent_id]
+    if siblings:
+        desired = "done" if all(t["status"] == "done" for t in siblings) else "doing" if any(t["status"] != "todo" for t in siblings) else "todo"
+        if parent["status"] != desired:
+            parent["status"] = desired
+            parent["completed_at"] = iso() if desired == "done" else None
+            parent["updated_at"] = iso()
+
+
 def task_fields(state, body, existing=None):
     sid = txt(body.get("subject_id", existing["subject_id"] if existing else ""), "Fach-ID", 80, True)
     subject(state, sid)
-    planned = number(body.get("planned_minutes", existing["planned_minutes"] if existing else 60), "Schätzung (Minuten)", 1, 100000)
+    raw_planned = body.get("planned_minutes", existing.get("planned_minutes") if existing else None)
+    planned = None if raw_planned is None or raw_planned == "" else number(raw_planned, "Schätzung (Minuten)", 1, 100000)
+    parent = validate_parent(state, body.get("parent_id", existing.get("parent_id") if existing else None),
+                             existing["id"] if existing else None, sid)
     status = body.get("status", existing["status"] if existing else "todo")
     priority = body.get("priority", existing["priority"] if existing else "normal")
     if status not in VALID_STATES or priority not in PRIORITIES:
         err("Status oder Priorität ungültig.")
     fields = {"title": txt(body.get("title", existing["title"] if existing else ""), "Aufgabentitel", 180, True),
               "description": txt(body.get("description", existing["description"] if existing else ""), "Beschreibung", 3000),
-              "subject_id": sid, "planned_minutes": planned, "status": status, "priority": priority,
+              "subject_id": sid, "planned_minutes": planned, "parent_id": parent, "status": status, "priority": priority,
               "due_date": due(body.get("due_date", existing["due_date"] if existing else None)),
+              "planned_for": due(body.get("planned_for", existing.get("planned_for") if existing else None)),
               "tags": valid_tags(state, body.get("tags", existing["tags"] if existing else []))}
     if existing and status != existing["status"]:
         fields["completed_at"] = iso() if status == "done" else None
@@ -371,7 +458,7 @@ def safe_batch_key(v):
 
 
 def add_agent_tasks(state, payload):
-    """Validated, idempotent per-profile import of a simple task envelope."""
+    """Atomic, idempotent import; relationships reference stable external task IDs."""
     if not isinstance(payload, dict) or payload.get("format") != "studytracker.tasks.v1":
         err("Erwartet format: studytracker.tasks.v1.")
     batch_id = safe_batch_key(payload.get("batch_id"))
@@ -381,8 +468,8 @@ def add_agent_tasks(state, payload):
     if any(i.get("batch_id") == batch_id for i in state["imports"]):
         return {"added": 0, "skipped": len(items), "batch_id": batch_id, "already_imported": True}
     staged = copy.deepcopy(state)
-    known_external = {t.get("external_id") for t in staged["tasks"] if t.get("external_id")}
-    added, skipped = 0, 0
+    known_external = {t.get("external_id"): t for t in staged["tasks"] if t.get("external_id")}
+    added, skipped, links = 0, 0, []
     for item in items:
         if not isinstance(item, dict):
             err("Jede Aufgabe muss ein JSON-Objekt sein.")
@@ -390,34 +477,59 @@ def add_agent_tasks(state, payload):
         if ext in known_external:
             skipped += 1
             continue
-        # Prefer exact existing subject names. Otherwise create a new subject.
         subject_name = txt(item.get("subject", ""), "Fach", 60, True)
-        s = next((s for s in staged["subjects"] if s["name"].casefold() == subject_name.casefold()), None)
-        if not s:
-            s = {"id": uid(), "name": subject_name, "color": COLORS[len(staged["subjects"]) % len(COLORS)],
-                 "weekly_goal_minutes": 0, "archived": False}
-            staged["subjects"].append(s)
+        sem_name = txt(item.get("semester") or "", "Semester", 80)
+        sem = None
+        if sem_name:
+            sem = next((x for x in staged["semesters"] if x["name"].casefold() == sem_name.casefold()), None)
+            if sem is None:
+                sem = {"id": uid(), "name": sem_name}
+                staged["semesters"].append(sem)
+        matches = [x for x in staged["subjects"] if x["name"].casefold() == subject_name.casefold()]
+        if sem:
+            sub = next((x for x in matches if x.get("semester_id") == sem["id"]), None)
+        elif len(matches) > 1:
+            err("Mehrere Fächer mit diesem Namen. Bitte 'semester' im Import angeben.")
+        else:
+            sub = matches[0] if matches else None
+        if not sub:
+            sub = {"id": uid(), "name": subject_name, "color": COLORS[len(staged["subjects"]) % len(COLORS)],
+                   "weekly_goal_minutes": None, "semester_id": sem["id"] if sem else None, "archived": False}
+            staged["subjects"].append(sub)
         tag_ids = []
         incoming_tags = item.get("tags", [])
         if not isinstance(incoming_tags, list) or len(incoming_tags) > 12:
             err("Pro Aufgabe höchstens 12 Tags.")
-        for name in incoming_tags:
-            name = txt(name, "Tag", 50, True)
-            tg = next((t for t in staged["tags"] if t["name"].casefold() == name.casefold()), None)
-            if not tg:
-                tg = {"id": uid(), "name": name, "color": COLORS[len(staged["tags"]) % len(COLORS)]}
-                staged["tags"].append(tg)
-            if tg["id"] not in tag_ids:
-                tag_ids.append(tg["id"])
-        # Validate fields before committing; status always starts at todo for safe ingestion.
-        row = task_fields(staged, {"subject_id": s["id"], "title": item.get("title", ""),
-                                   "description": item.get("description", ""), "planned_minutes": item.get("planned_minutes", 60),
+        for tag_name in incoming_tags:
+            tag_name = txt(tag_name, "Tag", 50, True)
+            tag = next((x for x in staged["tags"] if x["name"].casefold() == tag_name.casefold()), None)
+            if not tag:
+                tag = {"id": uid(), "name": tag_name, "color": COLORS[len(staged["tags"]) % len(COLORS)]}
+                staged["tags"].append(tag)
+            if tag["id"] not in tag_ids:
+                tag_ids.append(tag["id"])
+        row = task_fields(staged, {"subject_id": sub["id"], "title": item.get("title", ""),
+                                   "description": item.get("description", ""),
+                                   "planned_minutes": item.get("planned_minutes"),
                                    "status": "todo", "priority": item.get("priority", "normal"),
-                                   "due_date": item.get("due_date"), "tags": tag_ids})
-        staged["tasks"].append({"id": uid(), **row, "external_id": ext,
-                                "created_at": iso(), "updated_at": iso(), "completed_at": None})
-        known_external.add(ext)
+                                   "due_date": item.get("due_date"), "planned_for": item.get("planned_for"),
+                                   "tags": tag_ids})
+        created = {"id": uid(), **row, "external_id": ext,
+                   "created_at": iso(), "updated_at": iso(), "completed_at": None}
+        staged["tasks"].append(created)
+        known_external[ext] = created
+        parent_external = item.get("parent_external_id")
+        if parent_external:
+            links.append((created, txt(parent_external, "Externe Hauptaufgaben-ID", 160, True)))
         added += 1
+    # Resolve parent links in a separate pass, regardless of JSON task order.
+    for child, parent_external in links:
+        parent = known_external.get(parent_external)
+        if not parent:
+            err(f"Hauptaufgabe nicht gefunden: {parent_external}")
+        child["parent_id"] = validate_parent(staged, parent["id"], child["id"], child["subject_id"])
+    for parent_id in {child["parent_id"] for child, _ in links}:
+        reconcile_parent(staged, parent_id)
     staged["imports"].append({"batch_id": batch_id, "at": iso(), "added": added, "skipped": skipped})
     state.clear()
     state.update(staged)
@@ -429,20 +541,45 @@ def mutate(user_id, method, path, body):
         s = load_profile(user_id)
         parts = path.strip("/").split("/")
         message = {}
-        if path == "/api/subjects" and method == "POST":
+        if path == "/api/semesters" and method == "POST":
+            name = txt(body.get("name", ""), "Semestername", 80, True)
+            if any(x["name"].casefold() == name.casefold() for x in s["semesters"]):
+                err("Semester existiert bereits.")
+            s["semesters"].append({"id": uid(), "name": name})
+        elif len(parts) == 3 and parts[1] == "semesters" and method == "PATCH":
+            current = next((x for x in s["semesters"] if x["id"] == parts[2]), None)
+            if current is None:
+                err("Semester nicht gefunden.", 404)
+            name = txt(body.get("name", current["name"]), "Semestername", 80, True)
+            if any(x["id"] != current["id"] and x["name"].casefold() == name.casefold() for x in s["semesters"]):
+                err("Semester existiert bereits.")
+            current["name"] = name
+        elif len(parts) == 3 and parts[1] == "semesters" and method == "DELETE":
+            sid = semester_id(s, parts[2])
+            s["semesters"] = [x for x in s["semesters"] if x["id"] != sid]
+            for sub in s["subjects"]:
+                if sub.get("semester_id") == sid:
+                    sub["semester_id"] = None
+        elif path == "/api/subjects" and method == "POST":
             name = txt(body.get("name", ""), "Fach", 60, True)
-            if any(x["name"].casefold() == name.casefold() for x in s["subjects"]):
-                err("Fach existiert bereits.")
+            sem = semester_id(s, body.get("semester_id"))
+            if any(x["name"].casefold() == name.casefold() and x.get("semester_id") == sem for x in s["subjects"]):
+                err("Fach existiert in diesem Semester bereits.")
             s["subjects"].append({"id": uid(), "name": name, "color": check_color(body.get("color", COLORS[0])),
-                                  "weekly_goal_minutes": number(body.get("weekly_goal_minutes", 0), "Fachziel", 0, 10080), "archived": False})
+                                  "weekly_goal_minutes": optional_goal(body.get("weekly_goal_minutes"), "Fachziel"),
+                                  "semester_id": sem, "archived": False})
         elif len(parts) == 3 and parts[1] == "subjects" and method == "PATCH":
             sub = subject(s, parts[2])
-            if "name" in body:
-                sub["name"] = txt(body["name"], "Fach", 60, True)
+            next_name = txt(body.get("name", sub["name"]), "Fach", 60, True)
+            next_sem = semester_id(s, body.get("semester_id", sub.get("semester_id")))
+            if any(x["id"] != sub["id"] and x["name"].casefold() == next_name.casefold() and x.get("semester_id") == next_sem for x in s["subjects"]):
+                err("Fach existiert in diesem Semester bereits.")
+            sub["name"] = next_name
+            sub["semester_id"] = next_sem
             if "color" in body:
                 sub["color"] = check_color(body["color"])
             if "weekly_goal_minutes" in body:
-                sub["weekly_goal_minutes"] = number(body["weekly_goal_minutes"], "Fachziel", 0, 10080)
+                sub["weekly_goal_minutes"] = optional_goal(body["weekly_goal_minutes"], "Fachziel")
             if "archived" in body:
                 if not isinstance(body["archived"], bool):
                     err("Archivierungswert ungültig.")
@@ -462,12 +599,13 @@ def mutate(user_id, method, path, body):
             for sr in s["sessions"]:
                 sr["tags"] = [x for x in sr["tags"] if x != tid]
         elif path == "/api/settings" and method == "PATCH":
-            s["settings"]["weekly_goal_minutes"] = number(body.get("weekly_goal_minutes"), "Wochenziel", 0, 10080)
+            s["settings"]["weekly_goal_minutes"] = optional_goal(body.get("weekly_goal_minutes"), "Wochenziel")
         elif path == "/api/tasks" and method == "POST":
             taskrow = {"id": uid(), **task_fields(s, body), "external_id": None, "created_at": iso(), "updated_at": iso(), "completed_at": None}
             if taskrow["status"] == "done":
                 taskrow["completed_at"] = iso()
             s["tasks"].append(taskrow)
+            reconcile_parent(s, taskrow.get("parent_id"))
             message["task_id"] = taskrow["id"]
         elif len(parts) == 3 and parts[1] == "tasks" and method == "PATCH":
             row = task(s, parts[2])
@@ -477,8 +615,18 @@ def mutate(user_id, method, path, body):
                 any(entry.get("task_id") == row["id"] for entry in s["sessions"])
             ):
                 err("Fach einer Aufgabe mit erfasster Lernzeit kann nicht geändert werden.")
+            # Changing a task's subject must not leave its descendants behind.
+            if fields["subject_id"] != row["subject_id"] and any(x.get("parent_id") == row["id"] for x in s["tasks"]):
+                err("Fach einer Hauptaufgabe mit Unteraufgaben kann nicht geändert werden.")
+            prior_parent = row.get("parent_id")
+            desired_status = fields.pop("status")
+            fields.pop("completed_at", None)
             row.update(fields)
             row["updated_at"] = iso()
+            update_task_status(s, row, desired_status)
+            if prior_parent != row.get("parent_id"):
+                reconcile_parent(s, prior_parent)
+                reconcile_parent(s, row.get("parent_id"))
         elif len(parts) == 3 and parts[1] == "tasks" and method == "DELETE":
             row = task(s, parts[2])
             if s["active_timer"] and s["active_timer"].get("task_id") == row["id"]:
@@ -487,7 +635,13 @@ def mutate(user_id, method, path, body):
             for sr in s["sessions"]:
                 if sr.get("task_id") == row["id"]:
                     sr["task_id"] = None
+            old_parent = row.get("parent_id")
+            for child in s["tasks"]:
+                if child.get("parent_id") == row["id"]:
+                    # Deleting a parent never deletes valuable children or their sessions.
+                    child["parent_id"] = None
             s["tasks"] = [t for t in s["tasks"] if t["id"] != row["id"]]
+            reconcile_parent(s, old_parent)
         elif path == "/api/timer/start" and method == "POST":
             if s["active_timer"]:
                 err("Ein Timer läuft bereits.")
@@ -499,7 +653,9 @@ def mutate(user_id, method, path, body):
             if subject(s, sid)["archived"]:
                 err("Archiviertes Fach.")
             if t and t["status"] == "todo":
+                # A parent starts work without marking every child as in progress.
                 t["status"], t["updated_at"] = "doing", iso()
+                reconcile_parent(s, t.get("parent_id"))
             s["active_timer"] = {"subject_id": sid, "task_id": tid, "title": t["title"] if t else txt(body.get("title", ""), "Beschreibung", 180),
                                  "tags": list(t["tags"]) if t else valid_tags(s, body.get("tags", [])), "notes": "",
                                  "first_started_at": iso(), "mode_since": iso(), "mode": "focus",
@@ -563,14 +719,24 @@ def validate_backup(v):
         err("Backup unvollständig.")
     if len(v["subjects"]) > 500 or len(v["tags"]) > 500 or len(v["tasks"]) > 50000 or len(v["sessions"]) > 150000:
         err("Backup zu groß.")
-    s = {"version": 2, "subjects": [], "tags": [], "tasks": [], "sessions": [], "active_timer": None,
-         "settings": {"weekly_goal_minutes": 900}, "imports": []}
+    s = {"version": 2, "subjects": [], "semesters": [], "tags": [], "tasks": [], "sessions": [], "active_timer": None,
+         "settings": {"weekly_goal_minutes": None}, "imports": []}
+    raw_semesters = v.get("semesters", [])
+    if not isinstance(raw_semesters, list) or len(raw_semesters) > 100:
+        err("Ungültige Semester im Backup.")
+    for semester in raw_semesters:
+        sid = txt(semester.get("id"), "Semester-ID", 80, True)
+        name = txt(semester.get("name"), "Semestername", 80, True)
+        if any(x["id"] == sid or x["name"].casefold() == name.casefold() for x in s["semesters"]):
+            err("Doppelte Semester im Backup.")
+        s["semesters"].append({"id": sid, "name": name})
     for su in v["subjects"]:
         sid = txt(su.get("id"), "Fach-ID", 80, True)
         if any(x["id"] == sid for x in s["subjects"]):
             err("Doppelte Fach-ID.")
         s["subjects"].append({"id": sid, "name": txt(su.get("name"), "Fach", 60, True),
-                              "color": check_color(su.get("color")), "weekly_goal_minutes": number(su.get("weekly_goal_minutes", 0), "Ziel", 0, 10080),
+                              "color": check_color(su.get("color")), "weekly_goal_minutes": optional_goal(su.get("weekly_goal_minutes"), "Ziel"),
+                              "semester_id": semester_id(s, su.get("semester_id")),
                               "archived": bool(su.get("archived", False))})
     for ta in v["tags"]:
         tid = txt(ta.get("id"), "Tag-ID", 80, True)
@@ -581,11 +747,19 @@ def validate_backup(v):
         tid = txt(tr.get("id"), "Task-ID", 80, True)
         if any(x["id"] == tid for x in s["tasks"]):
             err("Doppelte Task-ID.")
-        fields = task_fields(s, tr)
+        # Validate parent links in a second pass: the parent may occur later in JSON.
+        fields = task_fields(s, {**tr, "parent_id": None})
         s["tasks"].append({"id": tid, **fields, "external_id": txt(tr.get("external_id") or "", "Extern-ID", 160) or None,
                            "created_at": timestamp(tr.get("created_at", iso())).isoformat(timespec="seconds"),
                            "updated_at": timestamp(tr.get("updated_at", iso())).isoformat(timespec="seconds"),
                            "completed_at": timestamp(tr["completed_at"]).isoformat(timespec="seconds") if tr.get("completed_at") else None})
+    for raw in v["tasks"]:
+        row = task(s, raw["id"])
+        row["parent_id"] = validate_parent(s, raw.get("parent_id"), row["id"], row["subject_id"])
+    for parent in [x for x in s["tasks"] if not x.get("parent_id") and any(c.get("parent_id") == x["id"] for c in s["tasks"])]:
+        siblings = [c for c in s["tasks"] if c.get("parent_id") == parent["id"]]
+        if (parent["status"] == "done") != all(c["status"] == "done" for c in siblings):
+            err("Hauptaufgabe und Unteraufgaben haben widersprüchliche Stati.")
     for sr in v["sessions"]:
         sid = txt(sr.get("id"), "Session-ID", 80, True)
         if any(x["id"] == sid for x in s["sessions"]):
@@ -611,7 +785,7 @@ def validate_backup(v):
                               "created_at": timestamp(sr.get("created_at", iso())).isoformat(timespec="seconds")})
     settings = v.get("settings", {})
     if isinstance(settings, dict):
-        s["settings"]["weekly_goal_minutes"] = number(settings.get("weekly_goal_minutes", 900), "Wochenziel", 0, 10080)
+        s["settings"]["weekly_goal_minutes"] = optional_goal(settings.get("weekly_goal_minutes"), "Wochenziel")
     imported = v.get("imports", [])
     if isinstance(imported, list):
         for line in imported[:5000]:
@@ -627,20 +801,22 @@ def export_csv(state, kind):
     stream = io.StringIO(newline="")
     writer = csv.writer(stream, delimiter=";")
     subjects = {x["id"]: x["name"] for x in state["subjects"]}
+    semesters = {x["id"]: x["name"] for x in state.get("semesters", [])}
+    semester_by_subject = {x["id"]: semesters.get(x.get("semester_id"), "") for x in state["subjects"]}
     tag_names = {x["id"]: x["name"] for x in state["tags"]}
     def protect(v):
         a = str(v if v is not None else "")
         return "'" + a if a.lstrip().startswith(("=", "+", "-", "@", "\t", "\r", "\n")) else a
     if kind == "sessions":
-        writer.writerow(["ID", "Fach", "Aufgabe ID", "Titel", "Tags", "Start UTC", "Ende UTC", "Lernminuten", "Pausenminuten", "Pausenintervalle (UTC ISO)", "Quelle", "Notizen"])
+        writer.writerow(["ID", "Fach", "Semester", "Aufgabe ID", "Titel", "Tags", "Start UTC", "Ende UTC", "Lernminuten", "Pausenminuten", "Pausenintervalle (UTC ISO)", "Quelle", "Notizen"])
         for sr in state["sessions"]:
-            writer.writerow([sr["id"], protect(subjects.get(sr["subject_id"])), sr.get("task_id") or "", protect(sr["title"]),
+            writer.writerow([sr["id"], protect(subjects.get(sr["subject_id"])), protect(semester_by_subject.get(sr["subject_id"])), sr.get("task_id") or "", protect(sr["title"]),
                              protect(", ".join(tag_names.get(t, t) for t in sr["tags"])), sr["started_at"], sr["ended_at"],
                              f'{sr["duration_seconds"]/60:.2f}'.replace(".", ","),
                              f'{sr.get("break_seconds", 0)/60:.2f}'.replace(".", ","),
                              protect(" | ".join(b["started_at"]+" bis "+b["ended_at"] for b in sr.get("breaks", []))), sr["source"], protect(sr["notes"])])
     elif kind == "tasks":
-        writer.writerow(["ID", "Fach", "Titel", "Status", "Priorität", "Fällig", "Geschätzt min", "Ist min", "Abweichung min", "Abweichung %", "Tags", "Extern-ID"])
+        writer.writerow(["ID", "Fach", "Semester", "Titel", "Hauptaufgabe ID", "Status", "Priorität", "Fällig", "Geplant für", "Geschätzt min", "Ist min", "Abweichung min", "Abweichung %", "Tags", "Extern-ID", "Ist gesamt inkl Unteraufgaben min", "Schätzung für Auswertung min", "Abweichung für Auswertung min"])
         used = {}
         for sr in state["sessions"]:
             if sr.get("task_id"):
@@ -648,9 +824,17 @@ def export_csv(state, kind):
         for t in state["tasks"]:
             act = used.get(t["id"], 0) / 60
             planned = t["planned_minutes"]
-            writer.writerow([t["id"], protect(subjects.get(t["subject_id"])), protect(t["title"]), t["status"], t["priority"], t["due_date"] or "",
-                             planned, f"{act:.2f}".replace(".", ","), f"{act-planned:.2f}".replace(".", ","),
-                             f"{(act-planned)/planned*100:.1f}".replace(".", ","), protect(", ".join(tag_names.get(x,x) for x in t["tags"])), protect(t.get("external_id", ""))])
+            children = [c for c in state["tasks"] if c.get("parent_id") == t["id"]]
+            full_actual = act + sum(used.get(c["id"], 0) for c in children) / 60
+            full_planned = planned if planned is not None else (
+                sum(c["planned_minutes"] for c in children) if children and all(c["planned_minutes"] is not None for c in children) else None)
+            writer.writerow([t["id"], protect(subjects.get(t["subject_id"])), protect(semester_by_subject.get(t["subject_id"])), protect(t["title"]), t.get("parent_id") or "", t["status"], t["priority"], t["due_date"] or "", t.get("planned_for") or "",
+                             "" if planned is None else planned, f"{act:.2f}".replace(".", ","),
+                             "" if planned is None else f"{act-planned:.2f}".replace(".", ","),
+                             "" if not planned else f"{(act-planned)/planned*100:.1f}".replace(".", ","), protect(", ".join(tag_names.get(x,x) for x in t["tags"])), protect(t.get("external_id", "")),
+                             f"{full_actual:.2f}".replace(".", ","),
+                             "" if full_planned is None else full_planned,
+                             "" if full_planned is None else f"{full_actual-full_planned:.2f}".replace(".", ",")])
     else:
         err("Nur sessions und tasks als CSV verfügbar.")
     return ("\ufeff" + stream.getvalue()).encode("utf-8")
@@ -698,7 +882,7 @@ def ingest_inbox_once() -> list[dict]:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "StudyTracker/2.0"
+    server_version = "StudyTracker/3.0"
 
     def json_response(self, status, data, headers=None):
         self.raw_response(status, json.dumps(data, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8", headers)
@@ -711,7 +895,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
-        self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'")
+        self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'")
         if headers:
             for k, v in headers.items():
                 self.send_header(k, v)
@@ -763,9 +947,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self.raw_response(200, body, mime, {"Content-Disposition": f'attachment; filename="{name}"'})
             if route.path in ("/", "/index.html"):
                 path, mime = STATIC / "index.html", "text/html; charset=utf-8"
-            elif route.path in ("/app.js", "/app.css"):
+            elif route.path in ("/app.js", "/app.css", "/features.css", "/i18n.js", "/favicon.svg"):
                 path = STATIC / route.path.lstrip("/")
-                mime = "text/javascript; charset=utf-8" if path.suffix == ".js" else "text/css; charset=utf-8"
+                mime = {".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml"}[path.suffix]
             else:
                 err("Nicht gefunden.", 404)
             return self.raw_response(200, path.read_bytes(), mime)
@@ -840,7 +1024,7 @@ def run_server(port=8765, open_browser=True):
     thread.start()
     try:
         with ThreadingHTTPServer(("127.0.0.1", port), Handler) as srv:
-            print(f"StudyTracker 2 gestartet: http://127.0.0.1:{srv.server_port}")
+            print(f"StudyTracker 3 gestartet: http://127.0.0.1:{srv.server_port}")
             print(f"Polybox-Datenverzeichnis: {DATA_DIR}")
             if open_browser:
                 threading.Timer(0.7, lambda: webbrowser.open(f"http://127.0.0.1:{srv.server_port}")).start()
@@ -852,7 +1036,7 @@ def run_server(port=8765, open_browser=True):
 
 
 def main():
-    p = argparse.ArgumentParser(description="StudyTracker 2 - Lerntracking mit Kanban & Polybox")
+    p = argparse.ArgumentParser(description="StudyTracker 3 - Lerntracking mit Kanban & Polybox")
     p.add_argument("--port", type=int, default=8765)
     p.add_argument("--no-browser", action="store_true")
     p.add_argument("--import-once", action="store_true", help="Polybox-Inbox einmalig verarbeiten und beenden")
