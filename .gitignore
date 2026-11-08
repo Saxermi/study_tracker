@@ -1,0 +1,10 @@
+/data/
+*.log
+__pycache__/
+.pytest_cache/
+.venv/
+venv/
+*.py[cod]
+*.swp
+.DS_Store
+*.tmp
