@@ -1,136 +1,190 @@
-# StudyTracker 2.0 — Lernzeit, Kanban, Pausen & Agentenimporte
+# StudyTracker 2.0 — Study Time, Kanban, Breaks & Agent Imports
 
-**Ein kostenloses, lokal laufendes Lernstudio für Ubuntu/Linux**, mit mehreren Benutzerkonten und vollständiger Datenkontrolle. Funktioniert mit deinem bestehenden **Polybox-Synchronisationsordner** – ohne Hosting, ohne bezahlten Server und ohne zusätzliche Python-Pakete.
+**A free, locally hosted study-tracking app for Ubuntu/Linux**, with multiple user accounts and full control over your data. Works with your existing **Polybox synchronization folder**—no hosting, paid server, or third-party Python packages required.
 
-![Dashboard](docs/screenshots/Dashboard.png)
+![StudyTracker dashboard](docs/screenshots/Dashboard.png)
 
-## Funktionen
+## Features
 
-| Bereich | Funktionen |
+| Area | Features |
 |---|---|
-| **Kanban-Board** | Geplant → In Arbeit → Erledigt, Drag & Drop, Aufgabentitel, Fach, Beschreibung, Fälligkeit, Priorität, Tags |
-| **Zeitschätzungen** | Jede Aufgabe hat eine Schätzung in Minuten; beliebig viele Lerneinheiten können derselben Aufgabe zugeordnet werden |
-| **Plan vs. Ist** | Aufgabenauswertung mit Minuten- und Prozentabweichung sowie kumuliertem Trend über alle abgeschlossenen, gemessenen Aufgaben |
-| **Timer & Pausen** | Fokus starten, echte Pause starten/beenden, unterbrechen/fortsetzen, Session speichern; Pausen werden separat mit Uhrzeiten erfasst |
-| **Benutzer** | Erstes Konto ist Administrator; weitere Konten anlegen; Login mit Passwort; getrennte Profildaten, Timer und Aufgaben |
-| **Lernhistorie** | Sessions nachtragen, bearbeiten, löschen, einem Fach und optional einer Aufgabe zuweisen |
-| **Auswertung** | 7/14/30 Tage, 13 Wochen, 12 Monate, Gesamtzeit, Fächerverteilung, Woche, Ziele, Pausenstatistik |
-| **Export** | JSON-Profilbackup, Lernzeiten-CSV und Aufgaben-CSV (UTF-8 mit BOM, Semikolon als Trennzeichen) |
-| **Agentenimport** | Aufgaben-JSON aus E-Mails über Datei-Upload oder automatisch aus dem Polybox-Inbox-Ordner; Duplikaterkennung |
+| **Kanban board** | To Do → In Progress → Done, drag and drop, task title, subject, description, due date, priority, and tags |
+| **Time estimates** | Set an estimate in minutes for each task; record any number of study sessions against it |
+| **Estimated vs. actual time** | Per-task differences in minutes and percentages, plus an aggregated trend across completed, time-tracked tasks |
+| **Timer and breaks** | Start focus time, start/end a break, pause/resume tracking, and save sessions; breaks are recorded separately with timestamps |
+| **Multiple users** | The first account is an administrator; create additional accounts with passwords and separate profiles, timers, and tasks |
+| **Study history** | Add, edit, and delete sessions; assign each session to a subject and optionally a task |
+| **Analytics** | 7-, 14-, and 30-day views; 13-week and 12-month trends; all-time totals, subject breakdowns, weekly goals, and break statistics |
+| **Exports** | Full JSON profile backup, study-session CSV, and tasks CSV (UTF-8 with BOM, semicolon-delimited) |
+| **Agent task imports** | Import tasks generated from emails as JSON through a file upload or an automatically processed Polybox inbox folder; duplicate detection included |
 
-### Screenshots mit Beispieldaten
+### Screenshots (using sample data)
 
-| Oberfläche | Ansicht |
+| Screen | Screenshot |
 |---|---|
 | Dashboard | [Dashboard.png](docs/screenshots/Dashboard.png) |
-| Kanban-Board | [Kanban.png](docs/screenshots/Kanban.png) |
-| Aufgabe anlegen | [Aufgabe-anlegen.png](docs/screenshots/Aufgabe-anlegen.png) |
-| Soll/Ist-Analyse | [Statistik.png](docs/screenshots/Statistik.png) |
-| Lernhistorie | [Lernhistorie.png](docs/screenshots/Lernhistorie.png) |
-| Einstellungen inkl. Benutzer | [Einstellungen.png](docs/screenshots/Einstellungen.png) |
-| Laufender Timer | [Timer.png](docs/screenshots/Timer.png) |
-| Laufende Pause | [Pause-laeuft.png](docs/screenshots/Pause-laeuft.png) |
-| Uhrzeiten der Pausen | [Pausen-Details.png](docs/screenshots/Pausen-Details.png) |
-| Mobile Browser-Breite | [Mobil.png](docs/screenshots/Mobil.png) |
-| Erstes Konto | [Anmeldung.png](docs/screenshots/Anmeldung.png) |
+| Kanban board | [Kanban.png](docs/screenshots/Kanban.png) |
+| Create task | [Aufgabe-anlegen.png](docs/screenshots/Aufgabe-anlegen.png) |
+| Estimated vs. actual analytics | [Statistik.png](docs/screenshots/Statistik.png) |
+| Study history | [Lernhistorie.png](docs/screenshots/Lernhistorie.png) |
+| Settings and user management | [Einstellungen.png](docs/screenshots/Einstellungen.png) |
+| Running timer | [Timer.png](docs/screenshots/Timer.png) |
+| Break in progress | [Pause-laeuft.png](docs/screenshots/Pause-laeuft.png) |
+| Break timestamps | [Pausen-Details.png](docs/screenshots/Pausen-Details.png) |
+| Narrow/mobile browser layout | [Mobil.png](docs/screenshots/Mobil.png) |
+| First-run account creation | [Anmeldung.png](docs/screenshots/Anmeldung.png) |
 
-## Installation auf Ubuntu
+## Installation on Ubuntu
 
-**Voraussetzung:** Python 3.10 oder neuer (`python3 --version`), ein aktueller Browser und ein funktionierender Polybox-Synchronisationsclient. Es ist **kein** `pip install` nötig.
+**Requirements:** Python 3.10 or newer (`python3 --version`) and a modern web browser. A working Polybox sync client is needed only if you want Polybox synchronization. **No `pip install` is required.**
 
-1. ZIP herunterladen, entpacken und den ganzen Projektordner nach Möglichkeit in deinen **lokal synchronisierten Polybox-Ordner** verschieben.
-2. Terminal im Projektordner öffnen:
+1. Download and extract the project ZIP. If you want Polybox synchronization, move the complete project folder into your **locally synchronized Polybox directory**.
+2. Open a terminal in the project directory and run:
+
+   ```bash
+   chmod +x start.sh
+   ./start.sh
+   ```
+
+3. The app should open automatically at **http://127.0.0.1:8765**. You can also open that address manually.
+4. On first launch, create an administrator account with a **password of at least 10 characters**.
+5. Create subjects or rename the sample subjects, add Kanban tasks, and use a task card's **Start** button to begin tracking.
+6. To add more users, go to **Settings → User Accounts** in the app.
+
+To change the port if `8765` is already in use:
 
 ```bash
-chmod +x start.sh
-./start.sh
+./start.sh --port 8766
 ```
 
-3. Die lokale Seite `http://127.0.0.1:8765` öffnet sich normalerweise selbst. Alternativ diese Adresse manuell im Browser aufrufen.
-4. Beim ersten Start ein Administratorkonto mit **mindestens 10 Zeichen Passwort** anlegen.
-5. Fächer erstellen oder die Beispiel-Fächer umbenennen; Aufgaben im Kanban hinzufügen; per Karten-Button `Start` den Timer aktivieren.
-6. Unter **Einstellungen → Benutzerkonten** weitere Personen mit eigenen Konten anlegen.
+To start without opening the browser (for example, to process an import inbox):
 
-**Port ändern** (wenn 8765 schon belegt ist): `./start.sh --port 8766`. **Ohne Browser öffnen** (z. B. für Inbox-Verarbeitung): `./start.sh --no-browser`.
+```bash
+./start.sh --no-browser
+```
 
-> Die App hört ausschließlich auf `127.0.0.1`. Sie ist **nicht** aus dem Internet und nicht automatisch von einem anderen Computer erreichbar. Benutzerkonten funktionieren für unterschiedliche Personen am selben Computer bzw. lokalem Server. Polybox ist Dateisynchronisation, **kein** Hosting oder gemeinsam genutztes Datenbanksystem.
+> StudyTracker binds to **`127.0.0.1` only**. It is not accessible from the public internet or automatically from another computer. Multiple accounts allow different people to use one running local instance. Polybox provides **file synchronization, not web hosting or a shared database server**.
 
-### Polybox-Synchronisierung
+### Polybox synchronization and data storage
 
-Am einfachsten bleibt das gesamte Projekt im lokalen Polybox-Ordner. Deine Benutzerdaten liegen in:
+The simplest setup is to keep the entire project in your local Polybox folder. User data is stored under `data/`:
 
 ```text
 StudyTracker-Polybox-v2/
-├── server.py                 # Lokaler Webserver / API
-├── static/                   # Benutzeroberfläche
-├── data/                     # Persönliche Daten, wird nach Start angelegt
-│   ├── accounts.json         # Benutzernamen + gesalzene Passwort-Hashes
-│   ├── profiles/<id>.json    # Fächer, Aufgaben, Sessions, Pausen pro Person
-│   ├── inbox/<name>/         # Automatische Aufgabenimporte
-│   │   ├── processed/        # Erfolgreich verarbeitete Dateien
-│   │   └── rejected/         # Fehlerhafte Dateien + Hinweise
-│   └── legacy-state-v1.json  # Nur bei einer Migration aus Version 1
-├── AGENTS.md                 # Agentenanleitung
-└── tests/                    # Tests
+├── server.py                   # Local web server and API
+├── static/                     # Web interface
+├── data/                       # Personal data; created on first use
+│   ├── accounts.json           # Usernames and salted password hashes
+│   ├── profiles/<id>.json      # Subjects, tasks, sessions, breaks per user
+│   ├── inbox/<username>/       # Incoming automated task imports
+│   │   ├── processed/          # Successfully processed files
+│   │   └── rejected/           # Invalid files and error explanations
+│   └── legacy-state-v1.json    # Only after migrating from version 1
+├── AGENTS.md                   # Instructions for AI agents
+└── tests/                      # Automated tests
 ```
 
-**Wichtig:** Bitte **nicht gleichzeitig auf zwei Rechnern** mit denselben Polybox-Dateien arbeiten. Polybox synchronisiert Dateien, löst aber keine konkurrierenden Datenbankänderungen. Mehrere Benutzer **in einer laufenden App-Instanz** sind dagegen durch getrennte Profile und eine Schreibsperre unterstützt. Bei Gerätewechsel: App schließen, Polybox vollständig synchronisieren lassen, dann auf dem anderen Gerät starten.
+**Do not use two computers against the same Polybox-synchronized dataset at the same time.** Polybox synchronizes files but cannot safely merge conflicting changes to a JSON database. Multiple users working within **one running StudyTracker instance** are supported through separate profiles and synchronized writes. When switching computers, stop the app, allow Polybox to finish syncing, and only then start it on the other computer.
 
-Vertrauliche Daten sind in `profiles/*.json` auf der Festplatte/Polybox **nicht verschlüsselt**. Passwörter werden nur gesalzen und mit PBKDF2-HMAC-SHA256 gehasht gespeichert. Verwende dafür ein eigenes, nicht öffentlich geteiltes Polybox-Verzeichnis. Zugangsdaten stehen **nicht** im JSON-Profilbackup.
+Personal data in `profiles/*.json` is **not encrypted** on disk or in Polybox. Passwords are stored only as salted PBKDF2-HMAC-SHA256 hashes. Keep the folder private and do not share its contents publicly. JSON profile backups do **not** include account passwords.
 
-### Bereits StudyTracker 1.0 verwendet?
+#### Change the data directory
 
-Wenn im ursprünglichen Polybox-Projekt eine `data/state.json` der Version 1 liegt, kopiere diese Datei nach `data/state.json` dieses neuen Projektordners, **bevor du den ersten Benutzer anlegst**. Bei der Erstellung des ersten Kontos werden Fächer, Tags, Sessions und das Wochenziel übernommen. Das Original bleibt als `data/legacy-state-v1.json` erhalten. Eine möglicherweise unterbrochene Live-Timer-Session wird **nicht** übernommen. Erstelle vorher zusätzlich ein manuelles Backup deiner alten Version.
-
-## Kanban und Soll-Ist-Statistik
-
-1. Lege eine Aufgabe an, z. B. **„Lineare Algebra: Serie 4“** mit **60 Minuten** Schätzung.
-2. Starte den Timer von der Karte; alle folgenden Sessions werden dieser Aufgabe zugeordnet.
-3. Verwende `Pause starten`/`Pause beenden`, wenn du eine tatsächliche Lernpause machst. Unterbrechen ist eine getrennte Funktion (keine Pausenmessung).
-4. Beende deine Fokuszeit und speichere die Session. Wiederhole das bei Bedarf.
-5. Schiebe die Aufgabe nach **Erledigt** (Drag & Drop oder über das Bearbeitungsformular).
-6. Unter **Auswertungen** siehst du Schätzung, Ist-Wert, Abweichung pro Aufgabe und aggregiert.
-
-**Beispiel:** 60 min geschätzt, zwei Fokus-Sessions von 20 min und 25 min, plus 10 min Pause → **45 min Ist**, **−15 min** bzw. **25 % schneller als geschätzt**. Die Pause erscheint **nicht** in der Ist-Lernzeit, aber in der Pausenstatistik.
-
-**Aggregation:** In den Plan/Ist-Kennzahlen zählen nur *abgeschlossene Aufgaben mit tatsächlicher Zeitmessung*. Offene Aufgaben und erledigte Aufgaben ohne Messung zählen nicht – sonst würden Aufgaben ohne Lernzeit künstlich als „sehr schnell“ erscheinen. In der Historie bleiben alle Sessions erhalten.
-
-## Automatisierter Aufgabenimport
-
-Die komplette Anleitung für ChatGPT/Codex-Agenten steht in [`AGENTS.md`](AGENTS.md), und einen kopierfertigen Prompt findest du unter [`prompts/email-to-tasks.md`](prompts/email-to-tasks.md). Beispiel: [`examples/email-task-import.json`](examples/email-task-import.json).
-
-1. Agent extrahiert aus einer Mail oder einem PDF Lernaufgaben und erstellt `studytracker.tasks.v1`-JSON.
-2. Importieren unter **Einstellungen → Import → Aufgaben-JSON importieren**, oder die Datei in `data/inbox/<benutzername>/` ablegen.
-3. Sobald StudyTracker läuft, liest es vollständige JSON-Dateien automatisch ein. Es erzeugt bei Bedarf Fächer und Tags, ordnet alle Karten **Geplant** zu und überspringt Duplikate.
-
-Das Ablegen geht auch per Befehl:
+To keep application code outside Polybox while synchronizing only the data, set `STUDYTRACKER_DATA_DIR` before launching:
 
 ```bash
-python3 scripts/add_tasks.py --user alex --file ~/Downloads/aufgaben.json
+export STUDYTRACKER_DATA_DIR="$HOME/Nextcloud/StudyTrackerData"
+./start.sh
 ```
 
-**Nicht Teil der App:** Selbstständiger Zugriff auf Gmail/Outlook oder automatisches Auslesen von Nachrichten ohne vorher von dir eingerichtete Verbindung. Der **Import nach Vorliegen einer JSON-Datei** läuft hingegen ohne weitere Klicks. Details in [`docs/IMPORT.md`](docs/IMPORT.md).
+Use the correct path to **your** local Polybox/Nextcloud folder. The separate data directory should not be inside a public Git repository.
 
-## Backup & Exporte
+### Migrating from StudyTracker 1.0
 
-Unter Einstellungen:
+If your old installation contains `data/state.json`, copy it to `data/state.json` in the new project **before creating the first user**. On first-account creation, StudyTracker imports your subjects, tags, sessions, and weekly goal. It also retains the original as `data/legacy-state-v1.json`.
 
-- **Vollständiges JSON-Backup**: nur das aktuell angemeldete Benutzerprofil (Fächer, Tags, Tasks, Sessions, Pausensegmente, Ziele, Importjournal); kein Passwort, kein Browser-Login und kein laufender Timer.
-- **Lernzeiten als CSV**: Sitzung, Fach, Aufgabe, Start/Ende (UTC), Fokusminuten, Pausenminuten, Pausenintervalle mit Uhrzeiten, Tags und Notizen.
-- **Aufgaben als CSV**: Fach, Status, Priorität, Schätzung, Ist-Zeit, absolute und prozentuale Abweichung.
-- **JSON-Backup wiederherstellen**: ersetzt nur das derzeit angemeldete Profil nach expliziter Bestätigung.
+A currently running timer is **not** migrated. Create a manual backup of version 1 before migrating.
 
-Zusätzlich legt die Anwendung vor dem ersten Profil-Änderungsvorgang pro Tag eine **lokale Sicherung** unter `~/.local/share/studytracker/backups/` an (die letzten 30 Tagesdateien je Profil). Diese liegt absichtlich außerhalb des Polybox-Projektordners und schützt vor einzelnen Sync-Fehlern. Sicher dir auch `data/accounts.json`, wenn du Konten auf einem anderen Computer wiederherstellen möchtest.
+## Kanban and estimated-vs.-actual analytics
 
-## Für Entwickler
+1. Create a task—for example, **“Linear Algebra: Problem Set 4”**—with an estimate of **60 minutes**.
+2. Start the timer from that task's Kanban card. All subsequent sessions assigned to the task contribute to its actual time.
+3. Use **Start Break / End Break** for a real study break. **Pause tracking** is a separate action and does not record break time.
+4. End and save your focus session. Repeat as needed.
+5. Move the task to **Done**, either by dragging the card or editing its status.
+6. Open **Analytics** to review the estimate, actual time, differences, and aggregate totals.
+
+**Example:** A 60-minute estimate, two focus sessions of 20 and 25 minutes, and a 10-minute break result in **45 minutes of actual study**, a **15-minute saving** (**25% under the estimate**). The break is excluded from the task's actual study time but included in break statistics.
+
+**Aggregation rule:** Only **completed tasks with measured time** contribute to estimated-vs.-actual summary metrics. Open tasks and completed tasks without recorded time are excluded; otherwise, tasks with zero measured time would incorrectly appear exceptionally fast. All recorded sessions still remain in the history.
+
+## Automated task imports (ChatGPT and other agents)
+
+The full agent instructions are in [`AGENTS.md`](AGENTS.md). A ready-to-use prompt is in [`prompts/email-to-tasks.md`](prompts/email-to-tasks.md), and a sample payload is in [`examples/email-task-import.json`](examples/email-task-import.json).
+
+1. An agent extracts study tasks from an email, PDF, or another source and produces JSON using the **`studytracker.tasks.v1`** format.
+2. Import the file in **Settings → Import → Import Tasks JSON**, or place it in **`data/inbox/<username>/`**.
+3. While StudyTracker is running, it automatically reads complete JSON files from the inbox, creates any missing subjects/tags, adds new tasks in the **To Do** column, and skips duplicates.
+
+Example JSON payload:
+
+```json
+{
+  "format": "studytracker.tasks.v1",
+  "batch_id": "email-2026-11-08-problem-set-5",
+  "tasks": [
+    {
+      "external_id": "email-2026-11-08-problem-set-5:1",
+      "subject": "Mathematics",
+      "title": "Complete problem set 5, exercises 1–4",
+      "description": "Solve the four assigned exercises.",
+      "planned_minutes": 90,
+      "priority": "normal",
+      "due_date": "2026-11-18",
+      "tags": ["Problem Set", "From Email"]
+    }
+  ]
+}
+```
+
+For a convenient command-line import, run:
+
+```bash
+python3 scripts/add_tasks.py --user alex --file ~/Downloads/tasks.json
+```
+
+The importer recognizes already-processed batches and stable task `external_id` values to avoid duplicates. Valid and processed files are moved to `processed/`; invalid files go to `rejected/` with an error message. See [`docs/IMPORT.md`](docs/IMPORT.md) and [`schemas/tasks-import.schema.json`](schemas/tasks-import.schema.json) for the full contract.
+
+**Not included:** StudyTracker does **not** directly access Gmail, Outlook, or other email accounts. Email retrieval and creation of the JSON file require a separately configured agent or workflow. Once a valid file has been placed in the inbox, import is automatic while the app is running.
+
+## Backups and exports
+
+From **Settings**, you can:
+
+- **Download a full JSON profile backup:** Includes the signed-in user's subjects, tags, tasks, sessions, breaks, goals, and import history. Does not contain passwords, login sessions, or an active timer.
+- **Export study sessions as CSV:** Includes session, subject, task, UTC start/end times, focus minutes, break minutes, individual break intervals with timestamps, tags, and notes.
+- **Export tasks as CSV:** Includes subject, status, priority, estimate, actual time, and absolute/percentage deviation.
+- **Restore a JSON backup:** Replaces only the currently signed-in user's profile, after explicit confirmation.
+
+Additionally, before the first profile change each day, StudyTracker creates a local backup under:
+
+```text
+~/.local/share/studytracker/backups/
+```
+
+It retains the latest **30 daily backup files per user profile**. These backups intentionally live outside the Polybox project folder, offering some protection against synchronization issues. Back up `data/accounts.json` separately if you need to restore user accounts on another computer.
+
+## Development
+
+Run the tests and basic checks:
 
 ```bash
 python3 -m unittest discover -s tests -v
 python3 -m py_compile server.py
-node --check static/app.js        # optional, wenn Node vorhanden ist
+node --check static/app.js    # Optional; requires Node.js
 ```
 
-Dateistruktur:
+Repository structure:
 
 ```text
 .
@@ -141,40 +195,56 @@ Dateistruktur:
 ├── README.md
 ├── server.py
 ├── start.sh
-├── static/{index.html,app.css,app.js}
+├── static/
+│   ├── index.html
+│   ├── app.css
+│   └── app.js
 ├── schemas/tasks-import.schema.json
-├── docs/{IMPORT.md,API.md,screenshots/}
+├── docs/
+│   ├── IMPORT.md
+│   ├── API.md
+│   └── screenshots/
 ├── prompts/email-to-tasks.md
 ├── examples/email-task-import.json
 ├── scripts/add_tasks.py
-└── tests/{test_server.py,test_http.py}
+└── tests/
+    ├── test_server.py
+    └── test_http.py
 ```
 
-CLI: `python3 server.py --help`. HTTP-Endpunkte sind in [`docs/API.md`](docs/API.md) erklärt. Reine Python-Standardbibliothek; kein externes Analytics-Tracking, kein CDN und kein API-Schlüssel.
+Additional commands: `python3 server.py --help`. The HTTP API is documented in [`docs/API.md`](docs/API.md). The backend uses only the **Python standard library**; no external analytics tracking, CDN, or API key is required.
 
-### GitHub veröffentlichen
+### Publish the code on GitHub
 
-Der Projektordner ist ein **GitHub-fertiges Repository**, nicht automatisch ein bereits veröffentlichtes Remote-Repository.
+The project is **GitHub-ready**, but it is not automatically published to a remote repository.
 
 ```bash
 git init
 git add .
 git commit -m "Initial StudyTracker v2"
 git branch -M main
-# Danach auf GitHub ein leeres Repository anlegen und dessen eigene Remote-URL verwenden:
-git remote add origin <DEINE-GITHUB-REPOSITORY-URL>
+# Create an empty GitHub repository, then use its actual remote URL:
+git remote add origin <YOUR-GITHUB-REPOSITORY-URL>
 git push -u origin main
 ```
 
-`.gitignore` schließt deine persönlichen Daten, Konten und lokale Dateien aus. **Achtung:** Public GitHub-Repositories sind für sensible Daten ungeeignet – vor dem Push prüfen, dass nichts aus `data/` ins Repository gelangt.
+The included `.gitignore` contains `/data/`, so personal data under the repository's root `data/` directory is ignored **unless it was already tracked by Git**. Check the repository before pushing:
 
-## Einschränkungen
+```bash
+git check-ignore -v data/accounts.json
+git ls-files data/
+git status --short
+```
 
-- Kein öffentliches Webhosting, keine serverübergreifende Echtzeit-Datenbank und keine gleichzeitige Bearbeitung desselben Polybox-Verzeichnisses auf mehreren Rechnern.
-- Kein automatisches Abrufen von E-Mails; dafür ist ein separat eingerichteter Dienst/Agent nötig.
-- Aktive Timer laufen auf Basis gespeicherter Zeitstempel weiter, wenn die Seite geschlossen wird, solange derselbe lokale Server und die Profildatei bestehen. Nach einem Rechnerneustart zeigt die App die vergangene Zeit seit dem letzten aktiven Fokus-/Pausenstart; die Sitzung muss ggf. manuell korrigiert oder verworfen werden.
-- Benutzerkonten haben derzeit keinen Selbstbedienungs-Passwortreset; bei Verlust des Passworts brauchst du administrative Wiederherstellung über ein Backup des Kontenbestands.
+`git ls-files data/` should output nothing. Remember that manually exported files outside `data/` may not be ignored. Do not commit personal data or secrets to a public repository.
 
-## Lizenz
+## Known limitations
 
-MIT. Siehe [LICENSE](LICENSE).
+- No public web hosting, shared real-time database, or safe concurrent editing of the same Polybox folder from separate computers.
+- No automatic retrieval of email messages; that requires a separately configured agent or integration.
+- Active timers use saved timestamps. They can continue to accumulate elapsed time after you close the browser, as long as the local server and profile persist. After a computer restart, elapsed time since the last focus/break start may be shown; review and correct or discard an inaccurate session.
+- User accounts do not currently offer self-service password resets. Recovery requires an administrative process using an account-data backup.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
