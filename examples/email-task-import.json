@@ -1,0 +1,26 @@
+{
+  "format": "studytracker.tasks.v1",
+  "batch_id": "demo-mail-analysis-2026-11-08",
+  "tasks": [
+    {
+      "external_id": "demo-mail-analysis-2026-11-08:1",
+      "subject": "Mathematik",
+      "title": "Analysis: Übungsblatt 5 lösen",
+      "description": "Aufgaben 1–4 bearbeiten und Lösungsweg prüfen.",
+      "planned_minutes": 90,
+      "priority": "high",
+      "due_date": "2026-11-18",
+      "tags": ["Übungsblatt", "Aus E-Mail"]
+    },
+    {
+      "external_id": "demo-mail-analysis-2026-11-08:2",
+      "subject": "Mathematik",
+      "title": "Tutoriumsfragen zum Übungsblatt vorbereiten",
+      "description": "Unklare Schritte notieren und Fragen formulieren.",
+      "planned_minutes": 25,
+      "priority": "normal",
+      "due_date": null,
+      "tags": ["Wiederholung", "Aus E-Mail"]
+    }
+  ]
+}
