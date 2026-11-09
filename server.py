@@ -40,6 +40,39 @@ ITERATIONS = 450_000
 COLORS = ["#7065EF", "#1AA59A", "#F4A35D", "#488FDD", "#CE6A98", "#9A78D5"]
 VALID_STATES = {"todo", "doing", "done"}
 PRIORITIES = {"low", "normal", "high"}
+REVIEW_OUTCOMES = {"correct", "partial", "incorrect"}
+REVIEW_ISSUES = {"concept", "approach", "calculation", "implementation", "instructions", "careless", "time", "verification"}
+REVIEW_KEYS = ("difficulty", "outcome", "issue", "help_total", "help_chatgpt")
+
+
+def validate_exercise_review(payload):
+    """One optional assessment per task; every value may independently be null.
+
+    Empty data is equivalent to no assessment. All five ratings remain separate
+    from timer sessions and cannot accidentally be interpreted as retries.
+    """
+    if payload is None:
+        return None
+    if not isinstance(payload, dict):
+        err("Exercise-Bewertung muss ein Objekt sein.")
+    if set(payload) - set(REVIEW_KEYS):
+        err("Unbekanntes Bewertungsfeld.")
+    result = {}
+    for k in ("difficulty", "help_total", "help_chatgpt"):
+        value = payload.get(k)
+        result[k] = None if value is None or value == "" else number(value, k, 0 if k != "difficulty" else 1, 5)
+    for k, choices in (("outcome", REVIEW_OUTCOMES), ("issue", REVIEW_ISSUES)):
+        value = payload.get(k)
+        if value in (None, ""):
+            result[k] = None
+        elif not isinstance(value, str) or value not in choices:
+            err("Ungültige Exercise-Bewertung: " + k)
+        else:
+            result[k] = value
+    if result["help_total"] is not None and result["help_chatgpt"] is not None and result["help_chatgpt"] > result["help_total"]:
+        err("ChatGPT-Hilfe kann nicht höher als gesamte Hilfe sein.")
+    return result if any(value is not None for value in result.values()) else None
+
 
 
 def now() -> datetime:
@@ -230,6 +263,7 @@ def load_profile(user_id: str):
     for t in data.get("tasks", []):
         t.setdefault("parent_id", None)
         t.setdefault("planned_for", None)
+        t.setdefault("exercise_review", None)
     return data
 
 
@@ -539,7 +573,7 @@ def add_agent_tasks(state, payload):
                                    "due_date": item.get("due_date"), "planned_for": item.get("planned_for"),
                                    "tags": tag_ids})
         created = {"id": uid(), **row, "external_id": ext,
-                   "created_at": iso(), "updated_at": iso(), "completed_at": None}
+                   "created_at": iso(), "updated_at": iso(), "completed_at": None, "exercise_review": None}
         staged["tasks"].append(created)
         known_external[ext] = created
         parent_external = item.get("parent_external_id")
@@ -632,7 +666,7 @@ def mutate(user_id, method, path, body):
         elif path == "/api/settings" and method == "PATCH":
             s["settings"]["weekly_goal_minutes"] = optional_goal(body.get("weekly_goal_minutes"), "Wochenziel")
         elif path == "/api/tasks" and method == "POST":
-            taskrow = {"id": uid(), **task_fields(s, body), "external_id": None, "created_at": iso(), "updated_at": iso(), "completed_at": None}
+            taskrow = {"id": uid(), **task_fields(s, body), "external_id": None, "created_at": iso(), "updated_at": iso(), "completed_at": None, "exercise_review": None}
             if taskrow["status"] == "done":
                 taskrow["completed_at"] = iso()
             s["tasks"].append(taskrow)
@@ -658,6 +692,12 @@ def mutate(user_id, method, path, body):
             if prior_parent != row.get("parent_id"):
                 reconcile_parent(s, prior_parent)
                 reconcile_parent(s, row.get("parent_id"))
+        elif len(parts) == 4 and parts[1] == "tasks" and parts[3] == "review" and method == "PATCH":
+            row = task(s, parts[2])
+            if not isinstance(body, dict):
+                err("Ungültige Bewertung.")
+            row["exercise_review"] = validate_exercise_review(body)
+            row["updated_at"] = iso()
         elif len(parts) == 3 and parts[1] == "tasks" and method == "DELETE":
             row = task(s, parts[2])
             if s["active_timer"] and s["active_timer"].get("task_id") == row["id"]:
@@ -794,7 +834,8 @@ def validate_backup(v):
         s["tasks"].append({"id": tid, **fields, "external_id": txt(tr.get("external_id") or "", "Extern-ID", 160) or None,
                            "created_at": timestamp(tr.get("created_at", iso())).isoformat(timespec="seconds"),
                            "updated_at": timestamp(tr.get("updated_at", iso())).isoformat(timespec="seconds"),
-                           "completed_at": timestamp(tr["completed_at"]).isoformat(timespec="seconds") if tr.get("completed_at") else None})
+                           "completed_at": timestamp(tr["completed_at"]).isoformat(timespec="seconds") if tr.get("completed_at") else None,
+                           "exercise_review": validate_exercise_review(tr.get("exercise_review"))})
     for raw in v["tasks"]:
         row = task(s, raw["id"])
         row["parent_id"] = validate_parent(s, raw.get("parent_id"), row["id"], row["subject_id"])
@@ -876,7 +917,7 @@ def export_csv(state, kind):
                              f'{sr.get("break_seconds", 0)/60:.2f}'.replace(".", ","),
                              protect(" | ".join(b["started_at"]+" bis "+b["ended_at"] for b in sr.get("breaks", []))), sr["source"], protect(sr["notes"]), protect(tag_names.get(sr["category_tag_id"] if "category_tag_id" in sr else (sr.get("tags") or [None])[0], "Ohne Kategorie"))])
     elif kind == "tasks":
-        writer.writerow(["ID", "Fach", "Semester", "Titel", "Hauptaufgabe ID", "Status", "Priorität", "Fällig", "Geplant für", "Geschätzt min", "Ist min", "Abweichung min", "Abweichung %", "Tags", "Extern-ID", "Ist gesamt inkl Unteraufgaben min", "Schätzung für Auswertung min", "Abweichung für Auswertung min"])
+        writer.writerow(["ID", "Fach", "Semester", "Titel", "Hauptaufgabe ID", "Status", "Priorität", "Fällig", "Geplant für", "Geschätzt min", "Ist min", "Abweichung min", "Abweichung %", "Tags", "Extern-ID", "Ist gesamt inkl Unteraufgaben min", "Schätzung für Auswertung min", "Abweichung für Auswertung min", "Schwierigkeit (1-5)", "Lösungserfolg", "Hauptproblem", "Gesamthilfe (0-5)", "ChatGPT-Hilfe (0-5)"])
         used = {}
         for sr in state["sessions"]:
             if sr.get("task_id"):
@@ -894,7 +935,8 @@ def export_csv(state, kind):
                              "" if not planned else f"{(act-planned)/planned*100:.1f}".replace(".", ","), protect(", ".join(tag_names.get(x,x) for x in t["tags"])), protect(t.get("external_id", "")),
                              f"{full_actual:.2f}".replace(".", ","),
                              "" if full_planned is None else full_planned,
-                             "" if full_planned is None else f"{full_actual-full_planned:.2f}".replace(".", ",")])
+                             "" if full_planned is None else f"{full_actual-full_planned:.2f}".replace(".", ","),
+                             *[(t.get("exercise_review") or {}).get(k) if (t.get("exercise_review") or {}).get(k) is not None else "" for k in REVIEW_KEYS]])
     else:
         err("Nur sessions und tasks als CSV verfügbar.")
     return ("\ufeff" + stream.getvalue()).encode("utf-8")
@@ -942,7 +984,7 @@ def ingest_inbox_once() -> list[dict]:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "StudyTracker/3.0"
+    server_version = "StudyTracker/4.2"
 
     def json_response(self, status, data, headers=None):
         self.raw_response(status, json.dumps(data, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8", headers)
@@ -1084,7 +1126,7 @@ def run_server(port=8765, open_browser=True):
     thread.start()
     try:
         with ThreadingHTTPServer(("127.0.0.1", port), Handler) as srv:
-            print(f"StudyTracker 4.1 gestartet: http://127.0.0.1:{srv.server_port}")
+            print(f"StudyTracker 4.2 gestartet: http://127.0.0.1:{srv.server_port}")
             print(f"Polybox-Datenverzeichnis: {DATA_DIR}")
             if open_browser:
                 threading.Timer(0.7, lambda: webbrowser.open(f"http://127.0.0.1:{srv.server_port}")).start()
@@ -1096,7 +1138,7 @@ def run_server(port=8765, open_browser=True):
 
 
 def main():
-    p = argparse.ArgumentParser(description="StudyTracker 4.1 - Lerntracking mit Kanban & Polybox")
+    p = argparse.ArgumentParser(description="StudyTracker 4.2 - Lerntracking mit Kanban & Polybox")
     p.add_argument("--port", type=int, default=8765)
     p.add_argument("--no-browser", action="store_true")
     p.add_argument("--import-once", action="store_true", help="Polybox-Inbox einmalig verarbeiten und beenden")

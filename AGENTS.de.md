@@ -101,3 +101,7 @@ Siehe [`prompts/email-to-tasks.de.md`](prompts/email-to-tasks.de.md) ([English](
 - Pro Lernsession kann im Timer oder manuellen Eintrag über die separate Session-API genau **eine** Hauptkategorie mit `category_tag_id` gesetzt werden. Das ist kein Feld des Agenten-Aufgabenformats.
 - Das Archiv ist eine berechnete Ansicht nach 48 Stunden im Status `done`. Agenten dürfen Aufgaben nicht löschen oder abschließen, um das Archiv zu befüllen.
 - Für alte Sessions ohne Kategorie dient der erste Tag als Rückfallwert; statistisch zählt jede Session genau einmal.
+
+## Exercise-Bewertungsdaten (v4.2)
+
+Eine Aufgabe darf **eine** optionale `exercise_review`-Bewertung besitzen, keine Liste von Lösungsversuchen. Felder: `difficulty` (1–5), `outcome` (`correct`, `partial`, `incorrect`), `issue` (einer von acht Codes), `help_total` (0–5), `help_chatgpt` (0–5). **Jedes Feld ist optional**; `null` ist nicht das gleiche wie `0`. Eine KI darf die Bewertung nicht aus E-Mails oder unvollständigen Chatverläufen erfinden. Wenn beide Hilfefelder gesetzt sind, darf ChatGPT-Hilfe nicht größer als Gesamthilfe sein. Siehe [Format](docs/EXERCISE_REVIEW.de.md) und [Prompt](prompts/exercise-review.de.md). Der bisherige Aufgabenimport `studytracker.tasks.v1` bleibt unverändert; Bewertungen werden dabei nicht automatisch importiert.
