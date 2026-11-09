@@ -106,3 +106,7 @@ See [`prompts/email-to-tasks.md`](prompts/email-to-tasks.md) ([German](prompts/e
 - When a human starts a timer or records a session, StudyTracker assigns exactly one optional **primary category** via `category_tag_id`; this belongs to the *session API*, not to the task-import schema.
 - Archives are a derived UI view after 48 hours in `done` status. Agents must not move, delete or mark imported tasks completed to force archival.
 - Every session is counted exactly once in category statistics; older sessions without the field use their first tag as a fallback. This remains true for both English and German UI.
+
+## Exercise review data (v4.2)
+
+A task may contain **one** optional `exercise_review` object, not an attempts array. The fields are `difficulty` (1–5), `outcome` (`correct`, `partial`, `incorrect`), `issue` (one of eight machine-readable issue codes), `help_total` (0–5), `help_chatgpt` (0–5). **Each is optional**, and `null` is distinct from `0`. Never fabricate an assessment from an email or unsupported chat context. If both help fields exist, `help_chatgpt` must not exceed `help_total`. See [schema](docs/EXERCISE_REVIEW.md) and [review prompt](prompts/exercise-review.md). Agent imports continue to use the existing `studytracker.tasks.v1` schema; assessment data is not inserted automatically by that task import flow.

@@ -41,3 +41,6 @@ The agent JSON format is **identical** for German and English: property names an
 ## Focus interval extension / Fokusintervalle (4.1)
 
 Timer-created sessions include an optional `focus_intervals` array of `{ "started_at": "...", "ended_at": "..." }` ISO-8601 pairs. These are recorded whenever focus changes to paused/break/stopped. Legacy sessions without intervals remain supported. Time-of-day statistics use these spans and exclude breaks; a legacy estimate is indicated when the precise timing is unavailable. JSON backup/restore preserves validated focus intervals.
+
+## Optional exercise assessment
+`PATCH /api/tasks/{id}/review` sets the full optional `exercise_review` object. All values are independently nullable; `{}` clears it. The field appears in task responses and JSON backups. Task CSV contains five columns. See [exercise review](EXERCISE_REVIEW.md).

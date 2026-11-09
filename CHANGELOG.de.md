@@ -30,3 +30,8 @@
 ## 2.x — Erste Version
 
 - Kanban, Mehrbenutzerprofile, Timer mit Pausen, Statistiken, JSON-/CSV-Exporte und Importordner.
+
+## 4.2 — Optionale Exercise-Bewertung
+- Je Aufgabe eine freiwillige Bewertung mit unabhängig optionalen Werten für Schwierigkeit, Ergebnis, acht Fehlerarten sowie Gesamt- und ChatGPT-Hilfe.
+- Kopierbarer ChatGPT-Prompt (DE/EN) und manuelle Übernahme von JSON-Vorschlägen.
+- Bewertungen im Task-CSV und JSON-Backup; alte Aufgaben bleiben kompatibel. Kein Prüfungsmodus und keine Versuchshistorie.

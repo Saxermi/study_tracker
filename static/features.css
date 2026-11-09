@@ -101,3 +101,24 @@
 .timing-cell{display:block;width:100%;height:23px;border:1px solid rgba(100,100,140,.1);border-radius:6px;background:color-mix(in srgb,var(--primary) calc(var(--heat-level, 0)*100%),var(--surface));padding:0;cursor:crosshair;transition:transform .14s ease,box-shadow .14s ease}.timing-cell.has-time:hover,.timing-cell:focus-visible{transform:scale(1.2);outline:2px solid var(--primary);outline-offset:1px;z-index:2;position:relative}.timing-cell.is-outside{background:repeating-linear-gradient(45deg,transparent,transparent 4px,var(--line) 4px,var(--line) 5px);border-color:transparent;cursor:default}
 .timing-bottom{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin-top:8px}.timing-bottom .inside-hint{flex:1;min-width:240px;text-align:right;margin:0}.timing-legend{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px}.timing-gradient{height:10px;width:95px;border-radius:99px;background:linear-gradient(90deg,var(--surface),var(--primary))}
 [data-theme="dark"] .timing-cell{border-color:rgba(255,255,255,.04)}[data-theme="dark"] .timing-cell.is-outside{border-color:transparent}@media(max-width:700px){.timing-panel{padding:18px}.timing-bottom .inside-hint{text-align:left}}
+
+/* Optional one-off per-exercise assessment. */
+#review-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.review-field{display:flex;flex-direction:column;gap:9px;min-width:0;font-weight:600;font-size:13px}
+.review-field select{width:100%;min-width:0;padding:10px;border-radius:9px;border:1px solid var(--border, #d9dbe8);background:var(--surface,transparent);color:inherit}
+.review-score-group{display:flex;gap:5px;flex-wrap:wrap}
+.review-score{flex:1 1 33px;min-width:32px;min-height:37px;border-radius:9px;background:var(--surface,rgba(120,120,120,.08));border:1px solid var(--border,#d9dbe8);color:inherit;cursor:pointer;font-weight:700}
+.review-score:hover,.review-score:focus-visible{outline:2px solid #7966ed;outline-offset:1px}
+.review-score.selected{border-color:#7867ee;background:rgba(115,92,240,.16);color:var(--primary,#7867ee)}
+.review-ends{display:flex;justify-content:space-between;color:var(--muted,#8a8d9b);font-weight:400}
+.review-ai{margin-top:16px;padding:14px;border:1px solid var(--border,#d9dbe8);border-radius:12px}
+.review-ai summary{cursor:pointer;font-weight:700}
+.review-ai textarea{display:block;width:100%;max-width:100%;box-sizing:border-box;min-height:96px;margin:8px 0 12px;padding:10px;resize:vertical;border-radius:9px;border:1px solid var(--border,#d9dbe8);background:var(--surface,transparent);color:inherit;font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}
+.review-ai label{display:block;font-weight:600;font-size:13px}
+@media(max-width:640px){#review-fields{grid-template-columns:1fr}}
+/* Keep all seven score choices on one row even in the two-column layout. */
+.modal-window:has(#review-form){width:min(100%,690px)}
+.review-score-group{flex-wrap:nowrap;min-width:0;gap:4px}
+.review-score{flex:1 1 0;min-width:0;padding:7px 2px}
+
+.review-copy-shortcut{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;font-weight:700;margin-top:16px}.review-copy-shortcut .btn{flex-shrink:0}
