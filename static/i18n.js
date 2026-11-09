@@ -198,6 +198,29 @@ Object.assign(TRANSLATIONS, {
  'Geplant':'Planned',
  'In Arbeit':'In progress'
 });
+Object.assign(TRANSLATIONS, {
+ 'Heute gelernt':'Studied today','Gespeichert + laufender Fokus':'Saved + ongoing focus',
+ 'HEUTE ERFASST':'TRACKED TODAY','Pausen':'Breaks','Lernkategorie':'Study category','Kategorie':'Category',
+ 'Ohne Kategorie':'No category','Ohne Kategorie.':'No category.',
+ 'Heute · nach tatsächlicher Fokuszeit':'Today · actual focus time','Heute · nach Startstunde':'Today · by starting hour', 'Heute · nach Uhrzeit (näherungsweise)':'Today · approximate hourly breakdown',
+ 'Archiv':'Archive','Abgeschlossene Aufgaben nach 48 Stunden · jederzeit durchsuchbar':'Tasks completed over 48 hours ago · searchable anytime',
+ 'Archiv durchsuchen …':'Search archive…','Letzte 10 Tage':'Last 10 days','Letzte 30 Tage':'Last 30 days',
+ 'Alle Aufgaben':'All tasks','Keine abgeschlossenen Aufgaben für diese Filter.':'No completed tasks match these filters.',
+ 'WOFÜR LERNST DU?':'WHAT ARE YOU STUDYING?','Zeit nach Kategorie':'Time by category',
+ 'Fach und Zeitraum oben auswählen. Jede Session zählt genau einmal; ohne Kategorie bleibt separat.':'Select a subject and time range above. Each session counts once; uncategorized time is shown separately.',
+ 'Ohne Kategorie':'Uncategorized','Automatisch (Aufgaben-Tag)':'Auto (task tag)','Gelöschte Kategorie':'Deleted category',
+ 'Noch keine Lernzeiten in diesem Zeitraum.':'No study sessions in this period.',
+ 'Noch keine Lernzeit heute.':'No study time today.',
+ 'Videos':'Videos','Vorlesung':'Lecture','Übungen':'Exercises',
+ 'WANN LERNST DU?':'WHEN DO YOU STUDY?',
+ 'Deine Lernzeiten nach Uhrzeit':'Your study hours by time of day',
+ 'Fach oben auswählen · Fokuszeit ohne Pausen · nach lokaler Uhrzeit':'Select a subject above · focus time without breaks · local time',
+ 'Ansicht':'View','Letzte 24 Stunden':'Last 24 hours','Letzte 48 Stunden':'Last 48 hours',
+ 'Typische Woche (Durchschnitt)':'Typical week (average)','Wochenmuster (Gesamt)':'Weekly pattern (total)',
+ 'pro aktive Woche':'per active week','Weniger':'Less','Mehr':'More',
+ 'Die Uhrzeiten werden aus deinen Lernsessions berechnet.':'Study hours are calculated from your recorded sessions.',
+ 'Bearbeiten':'Edit','Öffnen':'Reopen','Schätzung:':'Estimate:','Tatsächlich:':'Actual:',
+});
 const patterns = [
  [/^([0-9]+) \/ ([0-9]+) Teilaufgaben erledigt$/,m=>`${m[1]} / ${m[2]} subtasks completed`],
  [/^([0-9.,]+ (?:h|min)) (?:geschätzt|geplant)$/,m=>`${m[1]} estimated`],
@@ -205,6 +228,8 @@ const patterns = [
  [/^([0-9.,]+ (?:h|min)) erfasst$/,m=>`${m[1]} tracked`],
  [/^([0-9]+) Hauptaufgaben\/eigenständige Aufgaben mit Zeiterfassung · insgesamt (.+)$/,m=>`${m[1]} parent/standalone tasks with tracked time · total ${m[2]}`],
  [/^↳ (.+) · Teilaufgabe$/,m=>`↳ ${m[1]} · subtask`],
+ [/^([0-9.,]+ (?:h|min)) Pausen$/,n=>`${n[1]} breaks`],
+ [/^([0-9.,]+ (?:h|min)) erfasst$/,n=>`${n[1]} tracked`],
  [/^([0-9]+) Aufgaben für heute$/,n=>`${n[1]} tasks for today`],
  [/^([0-9]+) erledigt · ([0-9]+) offen$/,n=>`${n[1]} done · ${n[2]} open`],
  [/^([0-9.,]+ (?:h|min)) geplant$/,n=>`${n[1]} planned`],

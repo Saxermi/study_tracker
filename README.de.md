@@ -1,11 +1,11 @@
-# StudyTracker 3.0
+# StudyTracker 4.0
 
 **Kostenloser, lokal laufender Lerntracker für Ubuntu/Linux** mit Kanban, eigenständigen Unteraufgaben, Zeitmessung, Pausenprotokoll und Soll-Ist-Analysen. Die Daten können in deinem privaten Polybox-/Nextcloud-Synchronisationsordner liegen. Kein Abonnement, kein Datenbankserver, keine zusätzlichen Python-Pakete.
 
 **Sprachen:** [Deutsch](README.de.md) · [English](README.md)  
 **Agent-Anleitungen:** [Deutsch](AGENTS.de.md) · [English](AGENTS.md)
 
-![StudyTracker Dashboard](docs/screenshots/01-Dashboard.png)
+![StudyTracker Übersicht mit heutigen Lernzeiten](docs/screenshots/v4/01-Overview-Today.png)
 
 ## Funktionen
 
@@ -15,6 +15,11 @@
 | **Unteraufgaben** | B/C/D als eigenständige, sichtbare Kanban-Karten mit Verknüpfung zur Hauptaufgabe |
 | **Status-Verknüpfung** | Sind alle Unteraufgaben fertig, wird die Hauptaufgabe erledigt. Hauptaufgabe abhaken/öffnen wirkt auf alle Unteraufgaben; nur eine Unteraufgabe wieder öffnen wirkt auf die Hauptaufgabe |
 | **Freie Zeitschätzungen** | Für Haupt- und Unteraufgaben optional; fehlende Schätzungen werden nicht als null Minuten behandelt |
+| **Heutige Lernzeit** | Auf Übersicht und Heute die erfasste Lernzeit plus laufenden Fokus sehen; pro Fach auf Heute aufgeschlüsselt |
+| **Tagesdiagramme** | In der Übersicht für Lernrhythmus und Fachverteilung *Heute* auswählen |
+| **Kanban-Archiv** | Erledigte Aufgaben nach 48 Stunden automatisch im aufklappbaren Archiv; Filter für 10/30 Tage, alle Aufgaben, Fach und Text; jederzeit wieder öffnen |
+| **Lernkategorien** | Kategorie je Session auswählen: **Vorlesung**, **Videos**, **Übungen** oder eigene Tags; Auswertung nach Zeitraum und Fach, ohne Doppelzählung |
+| **Diagramm-Tooltips** | Modernere Hinweise beim Zeigen auf Balken, Kategorien, Legenden und Soll-Ist-Vergleiche |
 | **Für heute** | Ganze Aufgaben oder beliebige einzelne Teile für heute markieren; die Tagesansicht zeigt die Auswahl |
 | **Semester** | Semester anlegen, Fächer zuordnen, Fächer auch ohne Semester lassen |
 | **Fächerfarben & Ziele** | Gut sichtbare Farbkacheln oder freier Farbwähler; Wochenziele vollständig optional |
@@ -25,11 +30,31 @@
 | **Agentenimport** | JSON-Aufgaben aus E-Mails über Upload oder automatischen Polybox-Posteingang, Duplikate werden erkannt |
 | **Oberfläche** | Deutsch/Englisch, Hell/Dunkel, Browser-Tab-Icon |
 
+### Neu in Version 4
+
+![Kanban mit Aufgabenarchiv](docs/screenshots/v4/03-Kanban-Archive.png)
+
+*Neue Ansichten:* [Übersicht heute](docs/screenshots/v4/01-Overview-Today.png) · [Heute](docs/screenshots/v4/02-Today.png) · [Kanban-Archiv](docs/screenshots/v4/03-Kanban-Archive.png) · [Kategorieauswertung](docs/screenshots/v4/04-Insights-Categories.png) · [Englischer Dark Mode](docs/screenshots/v4/05-Insights-Dark-English.png) · [Schmale Dark-Mode-Ansicht](docs/screenshots/v4/06-Mobile-Dark.png) · [Tooltip](docs/screenshots/v4/07-Tooltip-Dark.png).
+
+**Kategorien:** Beim Timer und beim manuellen Erfassen/Bearbeiten einer Lerneinheit gibt es ein eigenes Feld *Kategorie*. Im JSON wird die Tag-ID als `category_tag_id` gespeichert. Sonstige Tags bleiben erhalten; pro Session wird die Fokuszeit genau **einer** Kategorie zugeordnet. Bei alten Sessions ohne Feld dient der erste Tag als Rückfallwert. Nicht kategorisierte Lernzeit bleibt sichtbar. Neue und bestehende Profile erhalten einmalig die Tags *Vorlesung* und *Videos* neben *Übungen* (anschließend frei bearbeitbar). Ein gewählter Timer-Kategoriewert ersetzt die automatische Standardkategorie aus der Aufgabe.
+
+**Heute und Mitternacht:** Tageswerte und Stundenbalken werden an der lokalen Mitternacht geteilt. Laufende Fokuszeit zählt auch dann, wenn der Timer gestern gestartet wurde. Pausen zählen nicht zur Lernzeit. Bei älteren Einträgen ohne Fokusintervalle ist die Verteilung nach Uhrzeit eine Näherung.
+
+**Archiv:** Die App berechnet die Archivansicht allein anhand von `status=done` und einem `completed_at`, das mindestens 48 Stunden zurückliegt. Keine Aufgaben werden gelöscht oder aus dem JSON verschoben. Die Verknüpfung von Haupt- und Unteraufgaben bleibt erhalten. Durch Wiederöffnen kehrt eine Aufgabe ins Board zurück. Die Filter beziehen sich auf das Abschlussdatum.
+
+
+### Lernzeit nach Uhrzeit
+
+![Lernzeit-Heatmap auf Deutsch](docs/screenshots/v4/08-Heatmap-DE.png)
+
+Unter **Auswertungen → Deine Lernzeiten nach Uhrzeit** wählst du **letzte 24 Stunden**, **letzte 48 Stunden**, **typische Woche (Durchschnitt pro aktiver Woche)** oder **Wochenmuster (Gesamt über alle erfassten Wochen)**. Mit dem Fachfilter darüber kannst du beispielsweise NumCSE betrachten. Eine Vorlesung am Freitag von 08:00 bis 10:00 wird in den Freitagsfeldern angezeigt. Vier insgesamt geleistete Stunden zwischen 01:00 und 02:00 werden in der Gesamtansicht addiert. Hover oder Tastaturfokus zeigen die Dauer an. Der Wochendurchschnitt wird durch die Anzahl der Kalenderwochen **mit erfasster Lernzeit** geteilt; die Ansichten für 24/48 Stunden verwenden ein gleitendes Zeitfenster mit ggf. angefangener erster/letzter Stunde. Zeitzone ist die lokale Browser-Zeitzone. Pausen zählen nicht.
+
+Neue Timer-Sessions speichern `focus_intervals` (ISO-8601-Zeitpaare in UTC), damit auch Unterbrechungen und die Grenze um Mitternacht korrekt abgebildet werden. Alte Profile bleiben gültig. Bei älteren Sessions ohne Fokusintervalle ist die stundenweise Zuordnung eine Schätzung anhand von Beginn, Ende, Fokusdauer und dokumentierten Pausen; die Oberfläche weist darauf hin. JSON-Backups enthalten die genauen Fokusintervalle, CSV enthält weiterhin die Gesamtfokuszeit.
+
 ### Screenshots
 
 [Dashboard](docs/screenshots/01-Dashboard.png) · [Kanban mit Unteraufgaben](docs/screenshots/02-Kanban.png) · [Unteraufgabe bearbeiten](docs/screenshots/03-Subtask.png) · [Heute](docs/screenshots/04-Today.png) · [Auswertungen](docs/screenshots/05-Insights.png) · [Semester](docs/screenshots/06-Semesters.png) · [Farbauswahl](docs/screenshots/07-Colors.png) · [Einstellungen](docs/screenshots/08-Settings.png) · [Englisch](docs/screenshots/09-Settings-English.png) · [Dark Mode](docs/screenshots/10-Kanban-Dark.png) · [Timer](docs/screenshots/11-Timer-Dark.png) · [Schmales Display](docs/screenshots/12-Mobile.png)
-| Laufende Pause im Dark Mode | [Pause](docs/screenshots/13-Break-Dark.png) |
-| Lernhistorie im Dark Mode | [Lernhistorie](docs/screenshots/14-History-Dark.png) |
+ · [Laufende Pause](docs/screenshots/13-Break-Dark.png) · [Lernhistorie](docs/screenshots/14-History-Dark.png)
 
 > Die Screenshots wurden mit Beispieldaten und einer **simulierten Browser-API** erstellt. Die reale Python-Schnittstelle wurde gesondert getestet; ein vollständiger Browser-zu-Localhost-Test war in der Testumgebung blockiert.
 

@@ -97,3 +97,12 @@ Or open **Settings → Import → Import tasks JSON** in the app.
 ## Copyable task-extraction request
 
 See [`prompts/email-to-tasks.md`](prompts/email-to-tasks.md) ([German](prompts/email-to-tasks.de.md)). Return only the import JSON, with separate linked child tasks, an optional estimate, reliable dates, deterministic IDs and no secrets.
+
+## StudyTracker 4: study categories, archives and time data
+
+- The import format **does not change**: keep using `studytracker.tasks.v1` with English machine keys in both language editions.
+- For lecture attendance use the task tag `Vorlesung`. For a recorded video use `Videos`; for exercises use `Übungen`. Use other tag names when the source warrants them. Do not invent tags or estimates unnecessarily. Task tags are suggestions for future timer sessions.
+- **Never include** `category_tag_id`, `duration_seconds`, `completed_at` or `archived` in a task-import JSON: task imports cannot create or change study sessions, completion or archive history.
+- When a human starts a timer or records a session, StudyTracker assigns exactly one optional **primary category** via `category_tag_id`; this belongs to the *session API*, not to the task-import schema.
+- Archives are a derived UI view after 48 hours in `done` status. Agents must not move, delete or mark imported tasks completed to force archival.
+- Every session is counted exactly once in category statistics; older sessions without the field use their first tag as a fallback. This remains true for both English and German UI.

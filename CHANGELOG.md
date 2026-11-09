@@ -1,5 +1,21 @@
 # Changelog (English)
 
+## 4.1 — Study-time heatmap (24h / 48h / typical week)
+
+- Added a local-time 24-hour / 48-hour / typical-week heatmap, subject filtering, accessible hover/focus tooltips and both average and total weekly views.
+- Exact focus intervals are now persisted across timer breaks, pause/resume and midnight; JSON backup round-trips them.
+- Fixed Today totals and Today hourly bars for cross-midnight sessions; legacy sessions display estimated timing where necessary.
+- Added JavaScript unit tests and Node CI job.
+
+## 4.0 — Today, completed-task archive and category breakdown
+
+- Live today focus total on Overview and Today; per-subject totals on Today.
+- Today-only hourly rhythm and subject charts on Overview; a Today option in Insights.
+- Calculated 48-hour archive on Kanban with 10/30-day/all-time, subject and text filters.
+- Optional `category_tag_id` on timer and sessions; new Vorlesung/Videos tags, single-count category insights with subject/date filtering.
+- Improved interactive chart tooltips and refined dashboard layout.
+- Backward-compatible JSON profiles, additional CSV category column, bilingual agent/API documentation and regression tests.
+
 ## 3.0 — Linked tasks, bilingual UI and theme
 
 - Separate Kanban cards for subtasks, linked to parents through `parent_id`.

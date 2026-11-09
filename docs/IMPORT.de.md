@@ -40,3 +40,7 @@ Das Skript schreibt atomar über eine temporäre Datei. Es liest weder E-Mails n
 Polybox synchronisiert Dateien, liest aber keine E-Mails. Ein Agent muss **tatsächlich Zugriff** auf den privaten Inbox-Ordner haben, um dort Dateien automatisch abzulegen. Aus einem normalen ChatGPT-Chat heraus ist das ohne zusätzliche Verbindung nicht möglich. Die App verwendet keine Gmail-/Outlook-/IMAP-Zugangsdaten und benötigt für Mailimport eine separat eingerichtete, autorisierte Verbindung.
 
 Fehlerhafte JSON-Dateien landen in `rejected/` mit einer `.error.txt`, erfolgreiche in `processed/`. Der Import schreibt erst nach Validierung **der ganzen Datei**. Pro Datei: höchstens 1 MB, 1–150 Aufgaben. JSON wird nur als Daten gelesen, nicht als Code ausgeführt. Vorhandene Aufgaben werden nicht still überschrieben.
+
+### v4: Aufgaben für spätere Kategorieauswertungen markieren
+
+Passende Aufgaben können `"tags": ["Vorlesung"]`, `"tags": ["Videos"]` oder `"tags": ["Übungen"]` erhalten. Das sind nur **Aufgaben-Tags**, keine erfassten Lernzeiten. Die Kategorie wird beim Erfassen einer Lernsession bestimmt. `category_tag_id` gehört nicht ins Agenten-Aufgabenformat; das Importschema bleibt unverändert.
