@@ -30,3 +30,8 @@
 ## 2.x — Initial study tracker
 
 - Kanban, multi-user profiles, timer with breaks, analytics, JSON/CSV exports and task inbox.
+
+## 4.2 — Optional exercise assessment
+- One optional review per task, with independently optional difficulty, outcome, eight problem codes, total help, and ChatGPT help.
+- Copyable German/English ChatGPT prompt and manual JSON suggestion import in the assessment dialog.
+- Reviews in task CSV and backup JSON; legacy and unassessed tasks remain supported. No exam mode or attempt history.
