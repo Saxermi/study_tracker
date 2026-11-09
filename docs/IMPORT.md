@@ -40,3 +40,7 @@ This safely stages a temporary file then renames it to `.json`. It does not retr
 Polybox only synchronizes local files. Writing into `data/inbox/` requires a program/agent with actual access to that directory; an ordinary ChatGPT conversation cannot place files there automatically. The app does not connect to Gmail/Outlook/IMAP or store mailbox credentials. Any email integration must be separately authorized.
 
 Rejected input is moved to `data/inbox/<username>/rejected/` with a `.error.txt` explanation; accepted input goes to `processed/`. The entire batch is validated before committing changes. File limit: 1 MB; 1–150 tasks per file. JSON is treated as data and never executed as code. The importer does not silently update existing tasks.
+
+### v4: Classify tasks for later study-time analytics
+
+If the source is a lecture, add `"tags": ["Vorlesung"]`; for a video add `"tags": ["Videos"]`; for exercise work `"tags": ["Übungen"]`. These are **task tags**, not recorded time. Category selection happens when the user records a session. Do not add `category_tag_id` to an imported task: the task-import schema is unchanged.

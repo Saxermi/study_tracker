@@ -18,3 +18,5 @@ Existing subject and semester names (if known): **[insert here]**
 **Email / source text:**
 
 [Paste the message here]
+
+**v4 tagging hint:** Distinguish a lecture (`Vorlesung`), a recorded video (`Videos`) and an exercise (`Übungen`) when the source provides enough evidence. Return these names as values in the task's `tags` list. Do not include `category_tag_id` or study times in a task import.

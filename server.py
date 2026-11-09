@@ -446,7 +446,10 @@ def session_fields(state, body, existing=None):
             "duration_seconds": duration,
             # Edits intentionally retain original break records, and cannot change them.
             "break_seconds": existing.get("break_seconds", 0) if existing else 0,
-            "breaks": existing.get("breaks", []) if existing else []}
+            "breaks": existing.get("breaks", []) if existing else [],
+            # Retain exact focus intervals only if the session timing was unchanged.
+            "focus_intervals": (existing.get("focus_intervals", []) if existing and
+                start == timestamp(existing["started_at"]) and duration == existing["duration_seconds"] else [])}
 
 
 def active_seconds(t, mode):
@@ -461,6 +464,9 @@ def timer_switch(t, to_mode):
     moment = now()
     if old_mode == "focus":
         t["focus_seconds"] = active_seconds(t, "focus")
+        t.setdefault("focus_intervals", []).append({
+            "started_at": timestamp(t["mode_since"]).isoformat(timespec="seconds"),
+            "ended_at": moment.isoformat(timespec="seconds")})
     if old_mode == "break":
         t["break_seconds"] = active_seconds(t, "break")
         begun = timestamp(t["mode_since"])
@@ -692,7 +698,8 @@ def mutate(user_id, method, path, body):
             s["active_timer"] = {"subject_id": sid, "task_id": tid, "title": t["title"] if t else txt(body.get("title", ""), "Beschreibung", 180),
                                  "tags": tracking_tags, "category_tag_id": chosen, "notes": "",
                                  "first_started_at": iso(), "mode_since": iso(), "mode": "focus",
-                                 "focus_seconds": 0, "break_seconds": 0, "breaks": []}
+                                 "focus_seconds": 0, "break_seconds": 0, "breaks": [],
+                                 "focus_intervals": []}
         elif path in ("/api/timer/pause", "/api/timer/resume", "/api/timer/break-start", "/api/timer/break-end") and method == "POST":
             t = s.get("active_timer")
             if not t:
@@ -718,6 +725,7 @@ def mutate(user_id, method, path, body):
                                   "category_tag_id": t.get("category_tag_id"),
                                   "started_at": begun.isoformat(timespec="seconds"), "ended_at": iso(),
                                   "duration_seconds": t["focus_seconds"], "break_seconds": t["break_seconds"], "breaks": t["breaks"],
+                                  "focus_intervals": t.get("focus_intervals", []),
                                   "source": "timer", "created_at": iso()})
             s["active_timer"] = None
         elif path == "/api/timer/discard" and method == "POST":
@@ -815,6 +823,23 @@ def validate_backup(v):
                 err("Session-Ende liegt vor Ablauf der Fokuszeit.")
             fields["ended_at"] = original_end.isoformat(timespec="seconds")
         fields["breaks"] = cleaned_breaks
+        raw_focus = sr.get("focus_intervals", [])
+        if not isinstance(raw_focus, list) or len(raw_focus) > 2000:
+            err("Ungültige Fokusintervalle.")
+        cleaned_focus = []
+        total_focus_ms = 0
+        for interval in raw_focus:
+            if not isinstance(interval, dict):
+                err("Ungültiges Fokusintervall.")
+            a, b = timestamp(interval.get("started_at")), timestamp(interval.get("ended_at"))
+            if b <= a or a < timestamp(fields["started_at"]) or b > timestamp(fields["ended_at"]) + timedelta(seconds=2):
+                err("Fokusintervall liegt außerhalb der Lerneinheit.")
+            total_focus_ms += (b - a).total_seconds() * 1000
+            cleaned_focus.append({"started_at": a.isoformat(timespec="seconds"),
+                                  "ended_at": b.isoformat(timespec="seconds")})
+        if cleaned_focus and abs(total_focus_ms/1000 - fields["duration_seconds"]) > len(cleaned_focus) + 2:
+            err("Fokusintervalle und erfasste Lernzeit stimmen nicht überein.")
+        fields["focus_intervals"] = cleaned_focus
         s["sessions"].append({"id": sid, **fields, "source": "timer" if sr.get("source") == "timer" else "manual",
                               "created_at": timestamp(sr.get("created_at", iso())).isoformat(timespec="seconds")})
     settings = v.get("settings", {})
@@ -982,7 +1007,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.raw_response(200, body, mime, {"Content-Disposition": f'attachment; filename="{name}"'})
             if route.path in ("/", "/index.html"):
                 path, mime = STATIC / "index.html", "text/html; charset=utf-8"
-            elif route.path in ("/app.js", "/app.css", "/features.css", "/i18n.js", "/favicon.svg"):
+            elif route.path in ("/app.js", "/app.css", "/features.css", "/i18n.js", "/time_analysis.js", "/favicon.svg"):
                 path = STATIC / route.path.lstrip("/")
                 mime = {".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml"}[path.suffix]
             else:
@@ -1059,7 +1084,7 @@ def run_server(port=8765, open_browser=True):
     thread.start()
     try:
         with ThreadingHTTPServer(("127.0.0.1", port), Handler) as srv:
-            print(f"StudyTracker 4 gestartet: http://127.0.0.1:{srv.server_port}")
+            print(f"StudyTracker 4.1 gestartet: http://127.0.0.1:{srv.server_port}")
             print(f"Polybox-Datenverzeichnis: {DATA_DIR}")
             if open_browser:
                 threading.Timer(0.7, lambda: webbrowser.open(f"http://127.0.0.1:{srv.server_port}")).start()
@@ -1071,7 +1096,7 @@ def run_server(port=8765, open_browser=True):
 
 
 def main():
-    p = argparse.ArgumentParser(description="StudyTracker 4 - Lerntracking mit Kanban & Polybox")
+    p = argparse.ArgumentParser(description="StudyTracker 4.1 - Lerntracking mit Kanban & Polybox")
     p.add_argument("--port", type=int, default=8765)
     p.add_argument("--no-browser", action="store_true")
     p.add_argument("--import-once", action="store_true", help="Polybox-Inbox einmalig verarbeiten und beenden")
