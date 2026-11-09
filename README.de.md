@@ -1,4 +1,4 @@
-# StudyTracker 4.0
+# StudyTracker 4.2
 
 **Kostenloser, lokal laufender Lerntracker für Ubuntu/Linux** mit Kanban, eigenständigen Unteraufgaben, Zeitmessung, Pausenprotokoll und Soll-Ist-Analysen. Die Daten können in deinem privaten Polybox-/Nextcloud-Synchronisationsordner liegen. Kein Abonnement, kein Datenbankserver, keine zusätzlichen Python-Pakete.
 
@@ -172,3 +172,9 @@ node --check static/i18n.js
 - [Import Deutsch](docs/IMPORT.de.md) · [Import English](docs/IMPORT.md)
 - [Changelog Deutsch](CHANGELOG.de.md) · [Changelog English](CHANGELOG.md)
 - [MIT-Lizenz](LICENSE)
+
+## Optionale Exercise-Bewertung (StudyTracker 4.2)
+
+Über **Bewerten** auf einer Kanban-Karte (auch im Archiv) kann jede Aufgabe höchstens **eine Bewertung** erhalten: Schwierigkeit (1–5), Lösungserfolg (richtig/teilweise/falsch), acht mögliche Hauptprobleme, Gesamthilfe (0–5) und ChatGPT-Hilfe (0–5). Alle Angaben sind freiwillig, auch die gesamte Bewertung kann leer bleiben. `0` bedeutet ausdrücklich keine Hilfe, ein leeres Feld **nicht bewertet**. Dies ist **kein** Versuchstagebuch oder Prüfungsmodus.
+
+Im Dialog gibt es einen kopierbaren ChatGPT-Prompt und ein Feld zum Einfügen einer JSON-Antwort. Vorschläge werden erst nach deiner Überprüfung und Bestätigung gespeichert. JSON-Backup und Aufgaben-CSV enthalten die Bewertung. Siehe [Bewertungsformat](docs/EXERCISE_REVIEW.de.md) und [deutscher Prompt](prompts/exercise-review.de.md).
