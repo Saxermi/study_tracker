@@ -180,7 +180,9 @@ def blank_profile():
         {"id": "lesen", "name": "Neuer Stoff", "color": COLORS[1]},
         {"id": "wiederholen", "name": "Wiederholung", "color": COLORS[2]},
         {"id": "pruefung", "name": "Prüfung", "color": COLORS[4]},
-    ], "semesters": [], "tasks": [], "sessions": [], "active_timer": None, "settings": {"weekly_goal_minutes": None}, "imports": []}
+        {"id": "vorlesung", "name": "Vorlesung", "color": COLORS[3]},
+        {"id": "videos", "name": "Videos", "color": COLORS[5]},
+    ], "semesters": [], "tasks": [], "sessions": [], "active_timer": None, "settings": {"weekly_goal_minutes": None, "v4_default_categories_initialized": True}, "imports": []}
 
 
 def migrate_v1_if_needed() -> dict:
@@ -218,6 +220,13 @@ def load_profile(user_id: str):
     for sub in data.get("subjects", []):
         sub.setdefault("semester_id", None)
         sub.setdefault("weekly_goal_minutes", None)
+    # One-time upgrade. Users are free to delete or rename the seeded tags later.
+    if not data["settings"].get("v4_default_categories_initialized"):
+        for ident, name, color in (("vorlesung", "Vorlesung", COLORS[3]), ("videos", "Videos", COLORS[5])):
+            if not any(t.get("name", "").casefold() == name.casefold() for t in data.setdefault("tags", [])):
+                unique_id = ident if not any(t.get("id") == ident for t in data["tags"]) else uid()
+                data["tags"].append({"id": unique_id, "name": name, "color": color})
+        data["settings"]["v4_default_categories_initialized"] = True
     for t in data.get("tasks", []):
         t.setdefault("parent_id", None)
         t.setdefault("planned_for", None)
@@ -420,10 +429,19 @@ def session_fields(state, body, existing=None):
     duration = number(body.get("duration_seconds", existing["duration_seconds"] if existing else None), "Lernzeit (Sekunden)", 1, 86400)
     if start > now() + timedelta(days=1):
         err("Startdatum zu weit in der Zukunft.")
+    selected_tags = valid_tags(state, body.get("tags", existing["tags"] if existing else []))
+    primary = body.get("category_tag_id", existing.get("category_tag_id") if existing else (selected_tags[0] if selected_tags else None))
+    if primary in (None, ""):
+        primary = None
+    elif primary not in {t["id"] for t in state["tags"]}:
+        err("Kategorie nicht gefunden.")
+    if primary and primary not in selected_tags:
+        selected_tags.insert(0, primary)
     return {"subject_id": sid, "task_id": task_id,
+            "category_tag_id": primary,
             "title": txt(body.get("title", existing.get("title", "") if existing else ""), "Beschreibung", 180),
             "notes": txt(body.get("notes", existing.get("notes", "") if existing else ""), "Notizen", 3000),
-            "tags": valid_tags(state, body.get("tags", existing["tags"] if existing else [])),
+            "tags": selected_tags,
             "started_at": start.isoformat(timespec="seconds"), "ended_at": (start + timedelta(seconds=duration)).isoformat(timespec="seconds"),
             "duration_seconds": duration,
             # Edits intentionally retain original break records, and cannot change them.
@@ -598,6 +616,13 @@ def mutate(user_id, method, path, body):
                 taskrow["tags"] = [x for x in taskrow["tags"] if x != tid]
             for sr in s["sessions"]:
                 sr["tags"] = [x for x in sr["tags"] if x != tid]
+                if sr.get("category_tag_id") == tid:
+                    sr["category_tag_id"] = None
+            active_timer = s.get("active_timer")
+            if active_timer:
+                active_timer["tags"] = [x for x in active_timer.get("tags", []) if x != tid]
+                if active_timer.get("category_tag_id") == tid:
+                    active_timer["category_tag_id"] = None
         elif path == "/api/settings" and method == "PATCH":
             s["settings"]["weekly_goal_minutes"] = optional_goal(body.get("weekly_goal_minutes"), "Wochenziel")
         elif path == "/api/tasks" and method == "POST":
@@ -656,8 +681,16 @@ def mutate(user_id, method, path, body):
                 # A parent starts work without marking every child as in progress.
                 t["status"], t["updated_at"] = "doing", iso()
                 reconcile_parent(s, t.get("parent_id"))
+            chosen = body.get("category_tag_id", t["tags"][0] if t and t["tags"] else None)
+            if chosen in (None, ""):
+                chosen = None
+            elif chosen not in {tag["id"] for tag in s["tags"]}:
+                err("Kategorie nicht gefunden.")
+            tracking_tags = list(t["tags"]) if t else valid_tags(s, body.get("tags", []))
+            if chosen and chosen not in tracking_tags:
+                tracking_tags.insert(0, chosen)
             s["active_timer"] = {"subject_id": sid, "task_id": tid, "title": t["title"] if t else txt(body.get("title", ""), "Beschreibung", 180),
-                                 "tags": list(t["tags"]) if t else valid_tags(s, body.get("tags", [])), "notes": "",
+                                 "tags": tracking_tags, "category_tag_id": chosen, "notes": "",
                                  "first_started_at": iso(), "mode_since": iso(), "mode": "focus",
                                  "focus_seconds": 0, "break_seconds": 0, "breaks": []}
         elif path in ("/api/timer/pause", "/api/timer/resume", "/api/timer/break-start", "/api/timer/break-end") and method == "POST":
@@ -682,6 +715,7 @@ def mutate(user_id, method, path, body):
             begun = timestamp(t["first_started_at"])
             s["sessions"].append({"id": uid(), "subject_id": t["subject_id"], "task_id": t["task_id"],
                                   "title": t["title"], "notes": t.get("notes", ""), "tags": t["tags"],
+                                  "category_tag_id": t.get("category_tag_id"),
                                   "started_at": begun.isoformat(timespec="seconds"), "ended_at": iso(),
                                   "duration_seconds": t["focus_seconds"], "break_seconds": t["break_seconds"], "breaks": t["breaks"],
                                   "source": "timer", "created_at": iso()})
@@ -786,6 +820,7 @@ def validate_backup(v):
     settings = v.get("settings", {})
     if isinstance(settings, dict):
         s["settings"]["weekly_goal_minutes"] = optional_goal(settings.get("weekly_goal_minutes"), "Wochenziel")
+        s["settings"]["v4_default_categories_initialized"] = bool(settings.get("v4_default_categories_initialized", False))
     imported = v.get("imports", [])
     if isinstance(imported, list):
         for line in imported[:5000]:
@@ -808,13 +843,13 @@ def export_csv(state, kind):
         a = str(v if v is not None else "")
         return "'" + a if a.lstrip().startswith(("=", "+", "-", "@", "\t", "\r", "\n")) else a
     if kind == "sessions":
-        writer.writerow(["ID", "Fach", "Semester", "Aufgabe ID", "Titel", "Tags", "Start UTC", "Ende UTC", "Lernminuten", "Pausenminuten", "Pausenintervalle (UTC ISO)", "Quelle", "Notizen"])
+        writer.writerow(["ID", "Fach", "Semester", "Aufgabe ID", "Titel", "Tags", "Start UTC", "Ende UTC", "Lernminuten", "Pausenminuten", "Pausenintervalle (UTC ISO)", "Quelle", "Notizen", "Kategorie"])
         for sr in state["sessions"]:
             writer.writerow([sr["id"], protect(subjects.get(sr["subject_id"])), protect(semester_by_subject.get(sr["subject_id"])), sr.get("task_id") or "", protect(sr["title"]),
                              protect(", ".join(tag_names.get(t, t) for t in sr["tags"])), sr["started_at"], sr["ended_at"],
                              f'{sr["duration_seconds"]/60:.2f}'.replace(".", ","),
                              f'{sr.get("break_seconds", 0)/60:.2f}'.replace(".", ","),
-                             protect(" | ".join(b["started_at"]+" bis "+b["ended_at"] for b in sr.get("breaks", []))), sr["source"], protect(sr["notes"])])
+                             protect(" | ".join(b["started_at"]+" bis "+b["ended_at"] for b in sr.get("breaks", []))), sr["source"], protect(sr["notes"]), protect(tag_names.get(sr["category_tag_id"] if "category_tag_id" in sr else (sr.get("tags") or [None])[0], "Ohne Kategorie"))])
     elif kind == "tasks":
         writer.writerow(["ID", "Fach", "Semester", "Titel", "Hauptaufgabe ID", "Status", "Priorität", "Fällig", "Geplant für", "Geschätzt min", "Ist min", "Abweichung min", "Abweichung %", "Tags", "Extern-ID", "Ist gesamt inkl Unteraufgaben min", "Schätzung für Auswertung min", "Abweichung für Auswertung min"])
         used = {}
@@ -1024,7 +1059,7 @@ def run_server(port=8765, open_browser=True):
     thread.start()
     try:
         with ThreadingHTTPServer(("127.0.0.1", port), Handler) as srv:
-            print(f"StudyTracker 3 gestartet: http://127.0.0.1:{srv.server_port}")
+            print(f"StudyTracker 4 gestartet: http://127.0.0.1:{srv.server_port}")
             print(f"Polybox-Datenverzeichnis: {DATA_DIR}")
             if open_browser:
                 threading.Timer(0.7, lambda: webbrowser.open(f"http://127.0.0.1:{srv.server_port}")).start()
@@ -1036,7 +1071,7 @@ def run_server(port=8765, open_browser=True):
 
 
 def main():
-    p = argparse.ArgumentParser(description="StudyTracker 3 - Lerntracking mit Kanban & Polybox")
+    p = argparse.ArgumentParser(description="StudyTracker 4 - Lerntracking mit Kanban & Polybox")
     p.add_argument("--port", type=int, default=8765)
     p.add_argument("--no-browser", action="store_true")
     p.add_argument("--import-once", action="store_true", help="Polybox-Inbox einmalig verarbeiten und beenden")
