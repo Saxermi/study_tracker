@@ -18,3 +18,5 @@ Vorhandene Fächer und Semester, falls bekannt: **[hier einsetzen]**
 **E-Mail / Quelltext:**
 
 [Nachricht hier einfügen]
+
+**Hinweis zu v4-Tags:** Unterscheide nach Möglichkeit Vorlesungsbesuch (`Vorlesung`), Videoaufzeichnung (`Videos`) und Übung (`Übungen`) und schreibe passende Begriffe als Werte in die `tags`-Liste der Aufgabe. `category_tag_id` und erfasste Lernzeiten dürfen nicht ins Aufgaben-Importformat.

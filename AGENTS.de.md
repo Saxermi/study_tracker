@@ -92,3 +92,12 @@ Oder im UI **Einstellungen → Import → Aufgaben-JSON importieren** auswählen
 ## Prompt
 
 Siehe [`prompts/email-to-tasks.de.md`](prompts/email-to-tasks.de.md) ([English](prompts/email-to-tasks.md)). Gib ausschließlich gültiges Import-JSON aus, mit eigenen Teilaufgaben, optionalen Schätzungen, belegbaren Fristen, stabilen IDs und ohne Zugangsdaten.
+
+## StudyTracker 4: Kategorien, Archiv und Lernzeiten
+
+- Das Importformat bleibt **unverändert**: `studytracker.tasks.v1` mit denselben englischen Schlüsseln in beiden Sprachen.
+- Für Präsenzveranstaltungen den Aufgaben-Tag `Vorlesung`, für aufgezeichnete Videos `Videos`, für Übungen `Übungen` verwenden, sofern sie zur Quelle passen. Keine Schätzzeiten oder Tags ohne Grundlage erfinden. Tags können bei einer künftigen Timer-Session als Standardkategorie dienen.
+- `category_tag_id`, `duration_seconds`, `completed_at` und `archived` **nicht** in Aufgaben-Import-JSON schreiben: der Agentenimport erzeugt keine Lernzeiten oder Abschlüsse.
+- Pro Lernsession kann im Timer oder manuellen Eintrag über die separate Session-API genau **eine** Hauptkategorie mit `category_tag_id` gesetzt werden. Das ist kein Feld des Agenten-Aufgabenformats.
+- Das Archiv ist eine berechnete Ansicht nach 48 Stunden im Status `done`. Agenten dürfen Aufgaben nicht löschen oder abschließen, um das Archiv zu befüllen.
+- Für alte Sessions ohne Kategorie dient der erste Tag als Rückfallwert; statistisch zählt jede Session genau einmal.

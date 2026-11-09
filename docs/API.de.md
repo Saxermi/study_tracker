@@ -32,3 +32,11 @@
 - `GET /api/export?format=csv&kind=tasks|sessions` — Semikolon-getrennte CSVs mit UTF-8-BOM für LibreOffice. Aufgaben-CSV enthält Hauptaufgaben-ID, direkte Zeiten und aufsummierte Zeiten; Session-CSV enthält Fokus und Pausen.
 
 **Das Agenten-JSON ist sprachunabhängig.** Schlüssel und Enumwerte bleiben auf Deutsch und Englisch gleich. Der Agent verwendet `semester` als Namen, die interne API `semester_id`.
+
+## v4: Session-Kategorien und Archiv
+
+`POST /api/timer/start` akzeptiert optional `category_tag_id` (`null` oder ID eines bestehenden Tags). Es überschreibt die erste Kategorie aus der Aufgabe. Beim Stoppen wird dieser Wert in der Session gespeichert. `POST/PATCH /api/sessions` unterstützt das gleiche Feld. `GET /api/state` und JSON-Exporte enthalten das Feld in Sessions; der CSV-Export `kind=sessions` erhält die zusätzliche Spalte `Kategorie`. Es gibt keinen neuen Archiv-Endpunkt: Die Oberfläche archiviert erledigte Aufgaben nach mindestens 48 Stunden seit `completed_at`; Wiederöffnen funktioniert über den vorhandenen Task-Endpunkt. Das Agentenimportformat bleibt unverändert.
+
+## Focus interval extension / Fokusintervalle (4.1)
+
+Timer-created sessions include an optional `focus_intervals` array of `{ "started_at": "...", "ended_at": "..." }` ISO-8601 pairs. These are recorded whenever focus changes to paused/break/stopped. Legacy sessions without intervals remain supported. Time-of-day statistics use these spans and exclude breaks; a legacy estimate is indicated when the precise timing is unavailable. JSON backup/restore preserves validated focus intervals.

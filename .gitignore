@@ -1,4 +1,13 @@
+# Private profile data (must NEVER be committed)
 /data/
+/exports/
+/backups/
+/*-Backup.json
+/*.csv
+.env
+.env.*
+
+# Python/build/editor artifacts
 *.log
 __pycache__/
 .pytest_cache/

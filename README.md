@@ -1,11 +1,11 @@
-# StudyTracker 3.0
+# StudyTracker 4.0
 
 **A local, free study tracker for Ubuntu/Linux with Kanban, independent subtasks, time tracking, break logging and accurate plan-vs-actual analysis.** Works with a private Polybox/Nextcloud synchronization folder. No subscription, database server or third-party Python packages.
 
 **Languages:** [English](README.md) · [Deutsch](README.de.md)  
 **Agent instructions:** [English](AGENTS.md) · [Deutsch](AGENTS.de.md)
 
-![StudyTracker dashboard](docs/screenshots/01-Dashboard.png)
+![StudyTracker dashboard with today's focus and charts](docs/screenshots/v4/01-Overview-Today.png)
 
 ## Features
 
@@ -15,6 +15,11 @@
 | **Independent subtasks** | Create B/C/D as separate visible cards linked to parent A; start a timer, complete or select each separately |
 | **Completion rules** | Completing every subtask automatically completes its parent; completing/reopening the parent also completes/reopens its children; reopening just one child reopens the parent |
 | **Optional estimates** | Estimates are optional on both parent tasks and subtasks; analysis skips tasks with unknown estimates |
+| **Today’s total** | See your logged focus time plus a running focus timer on the dashboard and Today page; time per subject is shown on Today |
+| **Daily charts** | In Overview, select *Today* for the hourly study rhythm and the subject breakdown |
+| **Kanban archive** | Done tasks remain on the board for 48 hours, then automatically appear in a collapsible archive; filter by last 10/30 days, all history, subject or text; reopen anytime |
+| **Study categories** | Use session-level categories backed by tags: **Lecture**, **Videos**, **Exercises**, or any custom tag. Each session is counted **once**. Insights supports subject + period filters, including Today |
+| **Tooltips** | Polished hover/focus details for study bars, subject legends, task comparisons and category graphs |
 | **Today** | Mark any parent or subtask “For today”; selecting a parent shows its children in the Today view |
 | **Semesters** | Create semesters and group subjects into them; existing subjects can remain unassigned |
 | **Subjects and colors** | Select preset colors or any custom color; weekly targets are optional and can stay empty |
@@ -24,6 +29,27 @@
 | **Export/import** | Full per-user JSON backup and restore; semicolon-separated CSV exports for tasks and sessions |
 | **Agent task imports** | Import `studytracker.tasks.v1` JSON from uploads or a watched Polybox inbox; stable IDs avoid duplicates |
 | **UI** | Light/dark theme and German/English language switch; browser-tab icon |
+
+### What changed in v4
+
+![Kanban completed task archive](docs/screenshots/v4/03-Kanban-Archive.png)
+
+*New views:* [Overview / Today](docs/screenshots/v4/01-Overview-Today.png) · [Today’s work](docs/screenshots/v4/02-Today.png) · [Filtered archive](docs/screenshots/v4/03-Kanban-Archive.png) · [Category analytics](docs/screenshots/v4/04-Insights-Categories.png) · [English dark mode](docs/screenshots/v4/05-Insights-Dark-English.png) · [Narrow dark view](docs/screenshots/v4/06-Mobile-Dark.png) · [Chart tooltip](docs/screenshots/v4/07-Tooltip-Dark.png).
+
+**Category rule:** Select a *Category* in the timer or when manually adding/editing a session. The category is stored as `category_tag_id`, referring to an existing tag; ordinary task/session tags remain supported. If an older session has no category, its first tag is used as a legacy fallback. Uncategorized sessions are shown separately. Each session contributes to exactly one category, **not** once per tag. New and upgraded profiles receive *Vorlesung* and *Videos* tags (plus the existing *Übungen*); tags remain editable. Choosing a category from the timer overrides the default task tag.
+
+**Today and midnight:** Daily totals and hourly bars now split sessions at local midnight and include any active focus time, even if the timer began yesterday. Pauses and breaks are excluded; older sessions without saved focus intervals are distributed approximately across their recorded wall time.
+
+**Archive rule:** Archive status is **calculated** from `status=done` plus `completed_at` older than 48 hours; no task is deleted or relocated in JSON. Both parents and independent subtasks retain their links and history. Opening a task moves it back to the board. Search and period filters operate on its completion date.
+
+
+### Study-time heatmap
+
+![Study heatmap in English dark mode](docs/screenshots/v4/10-Heatmap-English-Dark.png)
+
+In **Insights → Your study hours by time of day**, use the view selector to see the **last 24 hours**, **last 48 hours**, **typical week (average per active week)**, or **weekly pattern (total across all saved weeks)**. Use the regular subject selector above to filter, e.g. NumCSE. Friday 08:00–10:00 appears in the corresponding Friday cells; repeated 01:00–02:00 sessions accumulate in that clock-hour cell. Hover over or keyboard-focus a square for the exact duration. The weekly average divides by the number of distinct calendar weeks with recorded focus time (not all calendar weeks since installation). Recent charts use a rolling 24/48-hour cutoff and show partial first/last hours. All charts use the browser’s local timezone. Pauses and breaks do **not** count.
+
+Saved timers now persist `focus_intervals` (ISO-8601 start/end pairs, UTC) for accurate timing through pauses, breaks, midnight and resumed sessions; older profiles still work. For old sessions without these intervals, the chart estimates time placement using the start/end/duration and any recorded breaks and explicitly warns about the approximation. All exact intervals are preserved in JSON backups; CSV continues to export the overall focus minutes.
 
 ### Screenshots
 
