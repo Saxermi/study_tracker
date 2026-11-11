@@ -73,6 +73,23 @@ class HTTPTests(TestCase):
         self.assertEqual(self.request('/api/users',client=other)[0],403)
         self.assertEqual(self.request('/api/users','POST',{'display_name':'X','username':'something','password':'strong-password'},client=other)[0],403)
 
+    def test_review_sources_and_revision(self):
+        self.assertEqual(self.request('/api/profile/revision')[0],401)
+        self.login_admin()
+        _,first=self.request('/api/state')
+        self.assertIsInstance(first['revision'],str)
+        code,created=self.request('/api/tasks','POST',{'title':'Simplex','subject_id':'mathe'})
+        self.assertEqual(code,200)
+        tid=created['task_id']
+        code,updated=self.request('/api/tasks/'+tid+'/review','PATCH',
+            {'self':{'difficulty':2},'gpt':{'difficulty':3,'outcome':'partial','help_total':4,'help_chatgpt':4}})
+        self.assertEqual(code,200)
+        self.assertEqual(updated['state']['tasks'][0]['exercise_review']['difficulty'],2)
+        self.assertEqual(updated['state']['tasks'][0]['exercise_review_gpt']['difficulty'],3)
+        self.assertEqual(self.request('/api/profile/revision')[1]['revision'],updated['revision'])
+        self.assertNotEqual(first['revision'],updated['revision'])
+        self.assertEqual(self.request('/api/state')[1]['state']['tasks'][0]['exercise_review_gpt']['help_chatgpt'],4)
+
     def test_exports_task_import_and_csrf(self):
         self.login_admin()
         self.assertEqual(self.request('/api/import/tasks','POST',{'format':'studytracker.tasks.v1','batch_id':'mail-1','tasks':[{'external_id':'mail-1:1','subject':'Mathematik','title':'Kapitel lesen','planned_minutes':40} ]})[0],200)

@@ -201,3 +201,9 @@ The dialog includes a copyable ChatGPT prompt and a field to paste its JSON resp
 ### ChatGPT assessment saving (4.2.1 fix)
 
 If you paste a JSON response into the exercise assessment dialog, **Save assessment** now applies pending feedback directly; clicking **Apply ChatGPT response** first is optional. Missing or `null` AI suggestions will not erase saved or manually selected values, and manually selected values take precedence. Invalid JSON is rejected with a visible error. Saved ratings are summarized on task cards, the Today view and the archive.
+
+## 4.3 — Separate human and GPT exercise feedback
+
+Exercise rating now shows **My assessment** and **ChatGPT’s assessment** as two distinct sources, with a field-by-field comparison. You choose which individual GPT values to copy into your own rating. Pasting valid ChatGPT JSON and clicking Save stores both separately. Every field remains optional; the example JSON in the UI is never automatically saved. Both sources are exported in JSON and tasks CSV.
+
+Idle profile polling now checks a lightweight revision rather than transferring all JSON every five seconds, and large-board rendering is more efficient. See [the performance audit](docs/PERFORMANCE.md) and [exercise review specification](docs/EXERCISE_REVIEW.md).

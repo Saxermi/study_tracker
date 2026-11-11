@@ -126,3 +126,35 @@
 /* Keep saved exercise ratings visible on task cards, archives, and Today. */
 .task-review-summary {display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:7px 0;color:var(--muted);font-size:11px;font-weight:650;line-height:1.45}
 .task-review-summary svg {width:13px;height:13px;flex-shrink:0;color:var(--primary)}
+
+
+/* v4.3 — distinguish student ratings from GPT suggestions, support both themes */
+.review-source-header{display:flex;align-items:center;gap:11px;margin:13px 0 15px}
+.review-source-header h3,.review-source-comparison h3{font-size:15px;margin:0 0 3px;color:var(--ink)}
+.review-source-header small{font-size:11px;color:var(--muted)}
+.review-source-number{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:rgba(113,93,234,.16);color:var(--primary);font-weight:800;flex-shrink:0}
+.review-self-fields{padding:15px;border-radius:12px;border:1px solid var(--line)}
+.review-ai{display:block;background:color-mix(in srgb,var(--surface) 96%,var(--primary));border-color:var(--line)}
+.review-ai summary{color:var(--ink);font-size:14px}
+.review-ai>.inside-hint{font-size:11px}
+.review-prompt-details{margin:10px 0}
+.review-prompt-details summary{font-size:12px;color:var(--muted)}
+.review-ai #review-json::placeholder{color:var(--muted);opacity:.7}
+.review-gpt-actions{display:flex;justify-content:flex-end;margin:9px 0 5px}
+#review-gpt-status{color:var(--muted);font-size:11px}
+#review-gpt-status.error{color:#e16b7b;font-weight:700}
+.review-example{margin-top:9px}
+.review-example summary{font-size:11px;color:var(--muted)}
+.review-example pre{font:11px/1.5 ui-monospace,monospace;white-space:pre-wrap;border-radius:9px;padding:12px;color:var(--muted);border:1px solid var(--line);background:var(--surface)}
+.review-source-comparison{padding:14px 15px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.review-source-comparison h3{margin-bottom:11px}
+.review-compare-head,.review-compare-row{display:grid;grid-template-columns:minmax(110px,1.3fr) minmax(70px,1fr) minmax(70px,1fr) minmax(62px,.8fr);gap:7px;align-items:center}
+.review-compare-head{padding:0 0 8px;font-size:11px;color:var(--muted)}
+.review-compare-row{padding:8px 0;border-top:1px solid var(--line);font-size:11px}
+.review-compare-row>span:first-child{color:var(--muted)}
+.review-gpt-value{color:var(--primary)}
+.review-use{cursor:pointer;border-radius:8px;border:1px solid var(--line);background:rgba(113,93,234,.1);padding:5px;font-size:10px;color:var(--primary);font-weight:700}
+.review-use:hover,.review-use:focus-visible{border-color:var(--primary)}
+.review-summary-part{display:inline-block;padding:3px 6px;border-radius:7px;background:rgba(113,93,234,.09);font-size:11px}
+#review-form .modal-actions{position:sticky;bottom:-28px;background:var(--surface);z-index:3;padding:12px 0}
+@media(max-width:640px){.review-compare-head,.review-compare-row{grid-template-columns:1.3fr .9fr .9fr .8fr;gap:4px;font-size:10px}.review-source-comparison{padding:12px}}

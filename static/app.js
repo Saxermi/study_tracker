@@ -21,8 +21,10 @@ const icon = name => svg(ICONS[name] || ICONS.check);
 const hydrateIcons = () => $$('[data-icon]').forEach(el=>{el.innerHTML=icon(el.dataset.icon)});
 let state = null, user = null, currentPage = 'overview', editId = null, modalKind = null, modalTags = new Set(), modalColor = COLORS[0], taskDefaultStatus = 'todo';
 let showTimerNow = Date.now();
+let lastTimingRefresh=0, renderIndex=null;
 let reviewDraft = null, reviewPrompt = '', reviewAppliedJson = '';
 let reviewManualFields = new Set();
+let reviewGptDraft=null, reviewGptCleared=false, profileRevision=null;
 
 const api = async (path, method='GET', body=null) => {
  const opts={method,credentials:'same-origin',headers:body===null?{}:{'Content-Type':'application/json'}};
@@ -34,14 +36,22 @@ const api = async (path, method='GET', body=null) => {
 };
 let toastTimeout;
 function toast(message, error=false){const el=$('#toast');el.textContent=message;el.classList.toggle('error',error);el.classList.add('show');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.remove('show'),4000)}
-async function mutate(path,method='POST',body={}){try{const result=await api(path,method,body);if(result.state){state=result.state;renderAll()}return result}catch(e){toast(e.message,true);return null}}
-async function refresh(){const r=await api('/api/state');state=r.state;user=r.user;renderAll()}
-function subject(id){return state?.subjects.find(s=>s.id===id)}
-function taskById(id){return state?.tasks.find(t=>t.id===id)}
-function tagById(id){return state?.tags.find(t=>t.id===id)}
+async function mutate(path,method='POST',body={}){try{const result=await api(path,method,body);if(result.state){state=result.state;profileRevision=result.revision??profileRevision;renderAll()}return result}catch(e){toast(e.message,true);return null}}
+async function refresh(){const r=await api('/api/state');state=r.state;user=r.user;profileRevision=r.revision??null;renderAll()}
+function buildRenderIndex(){
+ const byTask=new Map(),children=new Map(),seconds=new Map(),bySubject=new Map(),byTag=new Map();
+ for(const t of state.tasks){byTask.set(t.id,t);if(t.parent_id){const c=children.get(t.parent_id)||[];c.push(t);children.set(t.parent_id,c)}}
+ for(const r of state.sessions){if(r.task_id)seconds.set(r.task_id,(seconds.get(r.task_id)||0)+(Number(r.duration_seconds)||0))}
+ for(const x of state.subjects)bySubject.set(x.id,x);
+ for(const x of state.tags)byTag.set(x.id,x);
+ return {byTask,children,seconds,bySubject,byTag};
+}
+function subject(id){return renderIndex?.bySubject.get(id) ?? state?.subjects.find(s=>s.id===id)}
+function taskById(id){return renderIndex?.byTask.get(id) ?? state?.tasks.find(t=>t.id===id)}
+function tagById(id){return renderIndex?.byTag.get(id) ?? state?.tags.find(t=>t.id===id)}
 function activeSubjects(){return state.subjects.filter(s=>!s.archived)}
-function secondsByTask(id){return state.sessions.filter(s=>s.task_id===id).reduce((n,s)=>n+s.duration_seconds,0)}
-function childrenOf(id){return state.tasks.filter(t=>t.parent_id===id)}
+function secondsByTask(id){return renderIndex?.seconds.get(id) ?? state.sessions.filter(s=>s.task_id===id).reduce((n,s)=>n+s.duration_seconds,0)}
+function childrenOf(id){return renderIndex?.children.get(id) ?? state.tasks.filter(t=>t.parent_id===id)}
 function rootTasks(){return state.tasks.filter(t=>!t.parent_id)}
 function taskEstimate(t){if(t.planned_minutes!=null)return t.planned_minutes;const children=childrenOf(t.id);return children.length&&children.every(c=>c.planned_minutes!=null)?children.reduce((n,c)=>n+c.planned_minutes,0):null}
 function taskSeconds(t){return secondsByTask(t.id)+childrenOf(t.id).reduce((n,c)=>n+secondsByTask(c.id),0)}
@@ -71,8 +81,8 @@ function niceTooltip(text){return escapeHtml(text)}
 function weekStart(){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-(d.getDay()+6)%7);return d}
 function sessionForWeek(){return state.sessions.filter(s=>new Date(s.started_at)>=weekStart())}
 function localTimestamp(){let d=new Date();return dateKey(d)+'T'+pad(d.getHours())+':'+pad(d.getMinutes())}
-function showPage(page){if(!['overview','today','board','insights','history','subjects','settings'].includes(page))page='overview';currentPage=page;$$('.page').forEach(p=>p.classList.toggle('visible',p.id==='page-'+page));$$('.nav-link').forEach(b=>b.classList.toggle('active',b.dataset.page===page));$('#crumb-current').textContent={overview:'Übersicht',today:'Heute',board:'Kanban-Board',insights:'Auswertungen',history:'Lernhistorie',subjects:'Fächer & Ziele',settings:'Einstellungen'}[page];$('#sidebar').classList.remove('open');if(location.hash.slice(1)!==page)history.replaceState(null,'','#'+page);if(page==='insights'){renderInsights();renderTiming()}}
-function renderAll(){if(!state)return;renderSide();renderSelects();renderTimer();renderOverview();renderToday();renderBoard();renderInsights();renderTiming();renderHistory();renderSubjects();renderSettings();hydrateIcons()}
+function showPage(page){if(!['overview','today','board','insights','history','subjects','settings'].includes(page))page='overview';currentPage=page;$$('.page').forEach(p=>p.classList.toggle('visible',p.id==='page-'+page));$$('.nav-link').forEach(b=>b.classList.toggle('active',b.dataset.page===page));$('#crumb-current').textContent={overview:'Übersicht',today:'Heute',board:'Kanban-Board',insights:'Auswertungen',history:'Lernhistorie',subjects:'Fächer & Ziele',settings:'Einstellungen'}[page];$('#sidebar').classList.remove('open');if(location.hash.slice(1)!==page)history.replaceState(null,'','#'+page);if(page==='insights'){renderInsights();renderTiming()}if(page==='board')renderBoard();if(page==='history')renderHistory()}
+function renderAll(){if(!state)return;renderIndex=buildRenderIndex();renderSide();renderSelects();renderTimer();renderOverview();renderToday();if(currentPage==='board')renderBoard();if(currentPage==='insights'){renderInsights();renderTiming()}if(currentPage==='history')renderHistory();renderSubjects();renderSettings();hydrateIcons()}
 function renderSide(){const open=state.tasks.filter(t=>t.status!=='done').length;$('#board-side-count').textContent=open;$('#today-side-count').textContent=state.tasks.filter(t=>t.status!=='done'&&t.planned_for===dateKey(new Date())).length;$('#sidebar-subjects').innerHTML=activeSubjects().map(s=>`<div class="sidebar-subject"><i class="subject-dot" style="background:${s.color}"></i>${escapeHtml(s.name)}</div>`).join('')||'<div class="sidebar-subject">Noch keine Fächer</div>';$('#user-name').textContent=user.display_name;$('#user-role').textContent=user.role==='admin'?'Administrator':'Benutzerkonto';$('#avatar').textContent=user.display_name.slice(0,1).toUpperCase()}
 function setSelect(id,options,all=false){const select=$(id),prev=select.value;select.innerHTML=(all?'<option value="all">Alle Fächer</option>':'')+options.map(s=>`<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`).join('');if([...select.options].some(o=>o.value===prev))select.value=prev}
 function renderSelects(){setSelect('#timer-subject',activeSubjects());setSelect('#archive-subject',state.subjects,true);renderCategorySelect();setSelect('#task-filter-subject',state.subjects,true);setSelect('#insights-subject',state.subjects,true);setSelect('#history-subject',state.subjects,true);renderTimerTasks()}
@@ -82,7 +92,7 @@ function renderTimer(){const a=state.active_timer;const mode=a?.mode;$('#focus-h
  for(const id of ['start','break','break-end','pause','resume','stop','discard'])$('#timer-'+id).hidden = (id==='start'?!!a:id==='break'?!a||mode!=='focus':id==='break-end'?!a||mode!=='break':id==='pause'?!a||mode!=='focus':id==='resume'?!a||mode!=='paused':!a);
  updateClock()}
 function timerTime(mode){const t=state?.active_timer;if(!t)return 0;let seconds=Number(t[mode==='focus'?'focus_seconds':'break_seconds'])||0;if(t.mode===mode&&t.mode_since){seconds+=Math.max(0,Math.floor((Date.now()-new Date(t.mode_since).getTime())/1000))}return seconds}
-function updateClock(){if(!state)return;const focus=timerTime('focus'),br=timerTime('break');let n=state.active_timer?.mode==='break'?br:focus;$('#focus-clock').textContent=`${pad(Math.floor(n/3600))}:${pad(Math.floor(n/60)%60)}:${pad(n%60)}`;$('#focus-amount').textContent=fmt(focus);$('#break-amount').textContent=fmt(br);renderTodayTotals();if(currentPage==='insights')renderTiming()}
+function updateClock(){if(!state)return;const focus=timerTime('focus'),br=timerTime('break');let n=state.active_timer?.mode==='break'?br:focus;$('#focus-clock').textContent=`${pad(Math.floor(n/3600))}:${pad(Math.floor(n/60)%60)}:${pad(n%60)}`;$('#focus-amount').textContent=fmt(focus);$('#break-amount').textContent=fmt(br);renderTodayTotals();if(currentPage==='insights'&&state.active_timer&&Date.now()-lastTimingRefresh>=60000){lastTimingRefresh=Date.now();renderTiming()}}
 async function timerAction(action,taskId=null){if(action==='discard'&&!confirm('Timer ohne Speichern verwerfen?'))return;let payload={};if(action==='start') {if(taskId){payload.task_id=taskId;showPage('overview')}else{payload={subject_id:$('#timer-subject').value,task_id:$('#timer-task').value||null,title:$('#timer-title').value}}payload.category_tag_id=$('#timer-category').value==='__none__'?null:($('#timer-category').value||(taskId?taskById(taskId)?.tags?.[0]:($('#timer-task').value?taskById($('#timer-task').value)?.tags?.[0]:null))||null);}const result=await mutate('/api/timer/'+action,'POST',payload);if(result){const messages={start:'Fokuszeit gestartet.',pause:'Timer unterbrochen.',resume:'Fokuszeit fortgesetzt.','break-start':'Pause gestartet.','break-end':'Pause beendet. Zurück zum Lernen!',stop:'Session gespeichert – inklusive deiner Pausen.',discard:'Timer verworfen.'};toast(messages[action]);if(action==='stop'||action==='discard')$('#timer-title').value=''}}
 function renderOverview(){const week=sessionForWeek();const focus=week.reduce((n,s)=>n+s.duration_seconds,0),br=week.reduce((n,s)=>n+(s.break_seconds||0),0),goal=(state.settings.weekly_goal_minutes||0)*60,progress=goal?Math.min(100,focus/goal*100):0;$('#goal-value').textContent=fmt(focus);$('#goal-target').textContent=goal?fmt(goal):'–';$('#goal-percent').textContent=goal?`${Math.round(progress)} % erreicht`:'Ohne Wochenziel';$('#goal-remain').textContent=goal?(focus<goal?`${fmt(goal-focus)} offen`:'Wochenziel erreicht!'):'Frei einteilbar';$('#goal-bar').style.width=(goal?progress:0)+'%';$('#days-week').textContent=`${new Set(week.map(s=>isoDate(s.started_at))).size} Tage`;const completed=state.tasks.filter(t=>t.status==='done'&&t.completed_at&&new Date(t.completed_at)>=weekStart()).length;$('#completed-week').textContent=`${completed} Aufgaben`;
  $('#kpi-week').textContent=fmt(focus);$('#kpi-today').textContent=fmt(totalSeconds(todaySessions()));$('#kpi-break').textContent=fmt(br);$('#kpi-tasks').textContent=state.tasks.filter(t=>t.status!=='done').length;
@@ -127,12 +137,13 @@ function taskCard(t){
  const deltaText=t.status==='done'&&used&&delta!=null?`<span class="task-variance ${delta<=0?'fast':'slow'}">${delta>0?'+':''}${Math.round(delta)} min</span>`:'';
  const doneChildren=children.filter(c=>c.status==='done').length;
  const relation=children.length?`<div class="subtasks-summary">${icon('checklist')} ${doneChildren} / ${children.length} Teilaufgaben erledigt</div>`:taskParentText(t);
- return `<article class="task-card ${t.parent_id?'is-child-task':'is-parent-task'}" draggable="true" data-task-card="${escapeHtml(t.id)}"><div class="task-top"><span class="task-subject"><i class="subject-dot" style="background:${sub?.color||COLORS[0]}"></i>${escapeHtml(sub?.name||'Fach')}</span><span class="task-priority ${t.priority}">${{high:'Wichtig',normal:'Normal',low:'Niedrig'}[t.priority]}</span></div><h3>${escapeHtml(t.title)}</h3>${relation}${t.description?`<p class="task-desc">${escapeHtml(t.description)}</p>`:''}<div class="task-tags">${tagHtml}</div><div class="task-today-row">${todayButton(t)}</div>${reviewSummary(t)}<div class="task-meta"><span>${icon('clock')} ${planned==null?'Ohne Schätzung':fmt(planned)+' geplant'}</span><span>${icon('timer')} ${fmt(used)} ist</span></div>${planned!=null?`<div class="task-progress"><div style="width:${percent}%"></div></div>`:''}<div class="task-bottom"><div class="mini-actions"><button class="mini-btn task-check-btn" data-task-check="${escapeHtml(t.id)}" title="${t.status==='done'?'Wieder öffnen':'Erledigen'}">${icon(t.status==='done'?'chevron':'check')} ${t.status==='done'?'Öffnen':'Fertig'}</button><button class="mini-btn" data-task-start="${escapeHtml(t.id)}" ${t.status==='done'?'disabled':''}>${icon('play')} Start</button><button class="mini-btn secondary" data-task-edit="${escapeHtml(t.id)}">${icon('edit')}</button><button class="mini-btn secondary" data-task-review="${escapeHtml(t.id)}" title="Exercise bewerten">${icon('checklist')} ${t.exercise_review?'Bewertet':'Bewerten'}</button>${!t.parent_id?`<button class="mini-btn secondary" data-add-child="${escapeHtml(t.id)}" title="Teilaufgabe hinzufügen">${icon('plus')} Teil</button>`:''}</div>${deltaText}</div></article>`;
+ return `<article class="task-card ${t.parent_id?'is-child-task':'is-parent-task'}" draggable="true" data-task-card="${escapeHtml(t.id)}"><div class="task-top"><span class="task-subject"><i class="subject-dot" style="background:${sub?.color||COLORS[0]}"></i>${escapeHtml(sub?.name||'Fach')}</span><span class="task-priority ${t.priority}">${{high:'Wichtig',normal:'Normal',low:'Niedrig'}[t.priority]}</span></div><h3>${escapeHtml(t.title)}</h3>${relation}${t.description?`<p class="task-desc">${escapeHtml(t.description)}</p>`:''}<div class="task-tags">${tagHtml}</div><div class="task-today-row">${todayButton(t)}</div>${reviewSummary(t)}<div class="task-meta"><span>${icon('clock')} ${planned==null?'Ohne Schätzung':fmt(planned)+' geplant'}</span><span>${icon('timer')} ${fmt(used)} ist</span></div>${planned!=null?`<div class="task-progress"><div style="width:${percent}%"></div></div>`:''}<div class="task-bottom"><div class="mini-actions"><button class="mini-btn task-check-btn" data-task-check="${escapeHtml(t.id)}" title="${t.status==='done'?'Wieder öffnen':'Erledigen'}">${icon(t.status==='done'?'chevron':'check')} ${t.status==='done'?'Öffnen':'Fertig'}</button><button class="mini-btn" data-task-start="${escapeHtml(t.id)}" ${t.status==='done'?'disabled':''}>${icon('play')} Start</button><button class="mini-btn secondary" data-task-edit="${escapeHtml(t.id)}">${icon('edit')}</button><button class="mini-btn secondary" data-task-review="${escapeHtml(t.id)}" title="Exercise bewerten">${icon('checklist')} ${t.exercise_review||t.exercise_review_gpt?'Bewertet':'Bewerten'}</button>${!t.parent_id?`<button class="mini-btn secondary" data-add-child="${escapeHtml(t.id)}" title="Teilaufgabe hinzufügen">${icon('plus')} Teil</button>`:''}</div>${deltaText}</div></article>`;
 }
 
 function renderBoard(){const filter=$('#task-filter-subject').value,search=$('#task-search').value.trim().toLocaleLowerCase('de-CH');const matched=state.tasks.filter(t=>!isArchivedTask(t)&&(filter==='all'||t.subject_id===filter)&&(!search||(t.title+' '+t.description+' '+(subject(t.subject_id)?.name||'')).toLocaleLowerCase('de-CH').includes(search)));for(const status of ['todo','doing','done']){const list=matched.filter(t=>t.status===status).sort((a,b)=>Number(!!a.parent_id)-Number(!!b.parent_id));$('#count-'+status).textContent=list.length;$('#list-'+status).innerHTML=list.map(taskCard).join('')||'<div class="task-placeholder">'+(status==='todo'?'Plane deine nächste Aufgabe.':status==='doing'?'Hier erscheinen aktive Aufgaben.':'Hier landen erledigte Aufgaben.')+'</div>'}renderArchive()}
 function renderArchive(){if(!state)return;const archived=state.tasks.filter(isArchivedTask);
  $('#archive-count').textContent=archived.length;
+ if($('#archive-content').hidden){$('#archive-results').replaceChildren();return;}
  const days=$('#archive-range').value,cutoff=dateCutoff(days),sid=$('#archive-subject').value,q=$('#archive-search').value.trim().toLocaleLowerCase();
  const filtered=archived.filter(t=>(days==='all'||new Date(t.completed_at)>=cutoff)&&(sid==='all'||t.subject_id===sid)&&(!q||[t.title,t.description,subject(t.subject_id)?.name,...(t.tags||[]).map(id=>tagById(id)?.name)].join(' ').toLocaleLowerCase().includes(q))).sort((a,b)=>b.completed_at.localeCompare(a.completed_at));
  $('#archive-results').innerHTML=filtered.map(t=>`<article class="archived-task"><div><div class="archive-meta"><span class="subject-dot" style="background:${subject(t.subject_id)?.color||COLORS[0]}"></span>${escapeHtml(subject(t.subject_id)?.name||'Fach')} · ${formatDate(t.completed_at)}${t.parent_id?' · ↳ '+escapeHtml(taskById(t.parent_id)?.title||'Teilaufgabe'):''}</div><h4>${escapeHtml(t.title)}</h4><div class="archive-tags">${t.tags.map(id=>`<span class="small-tag">${escapeHtml(tagById(id)?.name||'')}</span>`).join('')}</div>${reviewSummary(t)}<small>${taskEstimate(t)==null?'Ohne Schätzung':fmt(taskEstimate(t)*60)+' geplant'} · ${fmt(t.parent_id?secondsByTask(t.id):taskSeconds(t))} erfasst</small></div><div class="archive-actions"><button class="btn outline" data-task-edit="${escapeHtml(t.id)}">Bearbeiten</button><button class="btn outline" data-task-review="${escapeHtml(t.id)}">Bewertung</button><button class="btn outline" data-task-check="${escapeHtml(t.id)}">↶ Öffnen</button></div></article>`).join('')||'<div class="empty">Keine abgeschlossenen Aufgaben für diese Filter.</div>';}
@@ -266,23 +277,72 @@ function renderReviewControls(){
  <label class="review-field">${l.help_total}${scoreButtons('help_total',0,l)}</label>
  <label class="review-field">${l.help_chatgpt}${scoreButtons('help_chatgpt',0,l)}</label>`;
 }
+
+/* v4.3: human answers and GPT suggestions remain distinct. */
+function gptAssessmentFromDialog(){
+ const raw=$('#review-json')?.value.trim()||'';
+ if(!raw)return {data:reviewGptCleared?null:reviewGptDraft,error:null};
+ try{return {data:StudyExerciseReview.parseFeedback(raw),error:null}}
+ catch(e){return {data:null,error:e.message}}
+}
+function assessmentLabel(key,value){
+ const en=StudyI18n.language==='en';
+ if(value==null)return '—';
+ if(key==='outcome')return (en?{correct:'Correct',partial:'Partially correct',incorrect:'Incorrect'}:{correct:'Richtig',partial:'Teilweise richtig',incorrect:'Falsch'})[value]||value;
+ if(key==='issue'){const n=REVIEW_ISSUES.indexOf(value);return reviewLang().issues[n]||value}
+ return value+'/5';
+}
+function renderReviewComparison(){
+ const host=$('#review-source-comparison');if(!host||!reviewDraft)return;
+ const en=StudyI18n.language==='en',g=gptAssessmentFromDialog();
+ const source=$('#review-gpt-status');if(source){source.textContent=g.error?(en?'JSON error: ':'JSON-Fehler: ')+g.error:($('#review-json')?.value.trim()?(en?'GPT preview — Save to keep it':'GPT-Vorschau — zum Sichern speichern'):(g.data?(en?'Saved GPT feedback':'Gespeichertes GPT-Feedback'):(en?'No GPT feedback yet':'Noch kein GPT-Feedback')));source.classList.toggle('error',!!g.error)}
+ const keys=REVIEW_FIELDS,labels=reviewLang();const cols=en?['My rating','ChatGPT rating']:['Meine Bewertung','ChatGPT-Bewertung'];
+ host.innerHTML='<h3>'+(en?'Compare assessments':'Bewertungen vergleichen')+'</h3><div class="review-compare-head"><span></span><strong>'+cols[0]+'</strong><strong>'+cols[1]+'</strong><span></span></div>'+keys.map(k=>{
+  const mine=reviewDraft[k],other=g.data?.[k]??null;
+  const canUse=!g.error&&other!=null&&mine!==other;
+  return '<div class="review-compare-row"><span>'+escapeHtml(labels[k])+'</span><strong>'+escapeHtml(assessmentLabel(k,mine))+'</strong><strong class="review-gpt-value">'+escapeHtml(assessmentLabel(k,other))+'</strong><span>'+(canUse?'<button type="button" class="review-use" data-review-use="'+k+'">'+(en?'Use GPT':'Übernehmen')+'</button>':'')+'</span></div>';
+ }).join('');
+}
+function enhanceReviewDialog(task){
+ const en=StudyI18n.language==='en',form=$('#review-form');if(!form)return;
+ const rating=$('#review-fields');
+ rating.insertAdjacentHTML('beforebegin','<div class="review-source-header"><span class="review-source-number">1</span><div><h3>'+(en?'My assessment':'Meine Einschätzung')+'</h3><small>'+(en?'Your personal rating; every field is optional.':'Deine eigene Einschätzung; alles freiwillig.')+'</small></div></div>');
+ rating.classList.add('review-self-fields');
+ const ai=form.querySelector('.review-ai');ai.open=true;
+ ai.querySelector('summary').textContent=en?'2 · ChatGPT’s assessment':'2 · ChatGPT-Einschätzung';
+ const old=ai.querySelector('.inside-hint');if(old)old.textContent=en?'GPT feedback is saved separately. It never silently replaces your values.':'GPT-Feedback wird separat gespeichert und ersetzt deine Werte nicht.';
+ const prompt=$('#review-prompt');const details=document.createElement('details');details.className='review-prompt-details';
+ const summary=document.createElement('summary');summary.textContent=en?'Show copyable prompt':'Kopierbaren Prompt anzeigen';details.append(summary);prompt.before(details);details.append(prompt);
+ const paste=$('#review-json');paste.placeholder=en?'Paste actual ChatGPT JSON here…':'Tatsächliches ChatGPT-JSON hier einfügen…';
+ const sample=JSON.stringify({difficulty:3,outcome:'partial',issue:'concept',help_total:4,help_chatgpt:4},null,2);
+ paste.parentElement.insertAdjacentHTML('afterend','<div id="review-gpt-status" role="status" aria-live="polite"></div><div class="review-gpt-actions"><button type="button" class="btn outline" id="review-clear-gpt">'+(en?'Clear saved GPT feedback':'GPT-Feedback löschen')+'</button></div><details class="review-example"><summary>'+(en?'Example JSON (not saved)':'JSON-Beispiel (nicht gespeichert)')+'</summary><pre>'+escapeHtml(sample)+'</pre></details>');
+ const apply=$('#review-apply');if(apply)apply.remove();
+ form.querySelector('.modal-actions').insertAdjacentHTML('beforebegin','<section id="review-source-comparison" class="review-source-comparison"></section>');
+ reviewGptDraft=task.exercise_review_gpt||null;reviewGptCleared=false;
+ if(reviewGptDraft)paste.value=JSON.stringify(reviewGptDraft,null,2);
+ renderReviewComparison();
+}
+
 function openTaskReview(id){
  const t=taskById(id);if(!t)return;
  const l=reviewLang();editId=id;reviewDraft=Object.fromEntries(REVIEW_FIELDS.map(k=>[k,t.exercise_review?.[k]??null]));reviewPrompt=reviewPromptFor(t,l);reviewAppliedJson='';reviewManualFields=new Set();
  modalOpen('exercise-review',l.title,'EXERCISE · REVIEW',`<form class="modal-form" id="review-form"><p class="inside-hint">${l.hint}</p><div id="review-fields"></div><div class="review-copy-shortcut"><span>${l.prompt}</span><button class="btn outline" type="button" id="review-copy">${icon('copy')} ${l.copy}</button></div><details class="review-ai"><summary>${StudyI18n.language==='en'?'Show prompt and paste response':'Prompt anzeigen und Antwort einfügen'}</summary><p class="inside-hint">${l.note} ${StudyI18n.language==='en'?'Pasted JSON is also included when you click Save; manual choices take precedence.':'Eingefügtes JSON wird auch beim Speichern übernommen; manuelle Angaben haben Vorrang.'}</p><textarea id="review-prompt" readonly rows="7">${escapeHtml(reviewPrompt)}</textarea><label>${l.paste}<textarea id="review-json" rows="5" placeholder='{"difficulty": null, "outcome": null, "issue": null, "help_total": null, "help_chatgpt": null}'></textarea></label><button class="btn outline" type="button" id="review-apply">${l.apply}</button></details><div class="modal-actions"><span class="spacer"></span><button class="btn outline" type="button" data-modal-cancel>${l.skip}</button><button class="btn primary" type="submit">${l.save}</button></div></form>`);
- renderReviewControls();
+ renderReviewControls();enhanceReviewDialog(t);
 }
 function parseReviewJson(text){
  return StudyExerciseReview.applySuggestion(text,reviewDraft,reviewManualFields);
 }
 function reviewSummary(t){
- const r=t.exercise_review;if(!r)return '';
- const en=StudyI18n.language==='en', parts=[];
- if(r.difficulty!=null)parts.push((en?'Difficulty':'Schwierigkeit')+' '+r.difficulty+'/5');
- if(r.outcome)parts.push((en?{correct:'Correct',partial:'Partially correct',incorrect:'Incorrect'}:{correct:'Richtig',partial:'Teilweise richtig',incorrect:'Falsch'})[r.outcome]||r.outcome);
- if(r.help_total!=null)parts.push((en?'Help':'Hilfe')+' '+r.help_total+'/5');
- if(r.help_chatgpt!=null)parts.push('ChatGPT '+r.help_chatgpt+'/5');
- return parts.length?'<div class="task-review-summary" title="'+(en?'Saved exercise assessment':'Gespeicherte Exercise-Bewertung')+'">'+icon('checklist')+' '+escapeHtml(parts.join(' · '))+'</div>':'';
+ const en=StudyI18n.language==='en',result=[];
+ for(const [name,r] of [[en?'Mine':'Ich',t.exercise_review],['GPT',t.exercise_review_gpt]]){
+  if(!r)continue;const details=[];
+  if(r.difficulty!=null)details.push((en?'Difficulty ':'Schwierigkeit ')+r.difficulty+'/5');
+  if(r.outcome)details.push(assessmentLabel('outcome',r.outcome));
+  if(r.help_total!=null)details.push((en?'Help ':'Hilfe ')+r.help_total+'/5');
+  if(r.help_chatgpt!=null)details.push('ChatGPT '+r.help_chatgpt+'/5');
+  result.push('<span class="review-summary-part"><strong>'+name+':</strong> '+escapeHtml(details.join(' · ')||'—')+'</span>');
+ }
+ return result.length?'<div class="task-review-summary">'+icon('checklist')+' '+result.join(' ')+'</div>':'';
 }
 
 function openTask(id=null,status='todo',defaultParentId=null){const t=id?taskById(id):null;if(id&&!t)return;editId=id;taskDefaultStatus=status;modalTags=new Set(t?.tags||[]);
@@ -300,14 +360,9 @@ function openSubject(id=null){const s=id?subject(id):null;editId=id;modalColor=s
 function openSession(id=null){const s=id?state.sessions.find(x=>x.id===id):null;editId=id;modalTags=new Set(s?.tags||[]);const start=s?new Date(s.started_at):new Date(),date=dateKey(start),time=`${pad(start.getHours())}:${pad(start.getMinutes())}`;modalOpen('session',s?'Lerneinheit bearbeiten':'Zeit nachtragen','DEIN LERNJOURNAL',`<form id="session-form" class="modal-form"><div class="form-grid"><label>Fach<select id="f-s-subject">${subjectOptions(s?.subject_id||activeSubjects()[0]?.id)}</select></label><label>Aufgabe (optional)<select id="f-s-task"></select></label><label class="form-full">Titel<input id="f-s-title" value="${escapeHtml(s?.title||'')}" maxlength="180" placeholder="Was hast du gelernt?"></label><label>Datum<input id="f-s-date" type="date" required value="${date}"></label><label>Startzeit<input id="f-s-time" type="time" required value="${time}"></label><label>Fokus-Minuten<input id="f-s-minutes" type="number" required min="1" max="1440" value="${s?Math.round(s.duration_seconds/60):45}"></label><label>Kategorie<select id="f-s-category"><option value="">Ohne Kategorie</option>${state.tags.map(t=>`<option value="${escapeHtml(t.id)}" ${(s?(Object.prototype.hasOwnProperty.call(s,'category_tag_id')?s.category_tag_id:(s.tags||[])[0]):null)===t.id?'selected':''}>${escapeHtml(t.name)}</option>`).join('')}</select></label><div class="form-full"><label>Tags</label><div class="modal-tag-list" id="modal-tags">${modalTagHtml()}</div></div><label class="form-full">Notizen<textarea id="f-s-notes" maxlength="3000">${escapeHtml(s?.notes||'')}</textarea></label></div>${s?.break_seconds?`<div class="break-detail"><strong>${s.breaks?.length||0} Lernpause(n) · ${fmt(s.break_seconds)} gesamt</strong>${(s.breaks||[]).map((b,i)=>`<div><span>Pause ${i+1}</span><span>${new Date(b.started_at).toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'})} – ${new Date(b.ended_at).toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'})}</span><b>${fmt(b.duration_seconds)}</b></div>`).join('')}<small>Beim Bearbeiten bleiben diese Pausen unverändert.</small></div>`:''}<div class="modal-actions">${s?'<button type="button" class="btn danger" id="delete-modal-session">Löschen</button>':''}<span class="spacer"></span><button type="button" class="btn outline" data-modal-cancel>Abbrechen</button><button class="btn primary" type="submit">Speichern</button></div></form>`);populateSessionTasks(s?.task_id||null);$('#f-s-title').focus()}
 function populateSessionTasks(selected=null){const sid=$('#f-s-subject')?.value;if(!sid)return;$('#f-s-task').innerHTML='<option value="">Ohne Aufgabe</option>'+state.tasks.filter(t=>t.subject_id===sid).map(t=>`<option value="${t.id}">${escapeHtml(t.title)}</option>`).join('');if(selected)$('#f-s-task').value=selected}
 async function handleModalSubmit(e){e.preventDefault();if(modalKind==='exercise-review'){
-  const pasted=$('#review-json')?.value.trim()||'';
-  // Never silently ignore pasted feedback when the user skips Apply.
-  // Already applied JSON is not reapplied, so manual edits survive.
-  if(pasted && pasted!==reviewAppliedJson){
-   try{reviewDraft=parseReviewJson(pasted);reviewAppliedJson=pasted;renderReviewControls();}
-   catch(err){toast((StudyI18n.language==='en'?'Cannot save ChatGPT response: ':'ChatGPT-Antwort kann nicht gespeichert werden: ')+err.message,true);return;}
-  }
-  if(await mutate('/api/tasks/'+editId+'/review','PATCH',reviewDraft)){modalClose();toast(StudyI18n.language==='en'?'Assessment saved.':'Bewertung gespeichert.')}
+  const g=gptAssessmentFromDialog();
+  if(g.error){toast((StudyI18n.language==='en'?'Cannot save GPT feedback: ':'GPT-Feedback kann nicht gespeichert werden: ')+g.error,true);return;}
+  if(await mutate('/api/tasks/'+editId+'/review','PATCH',{self:reviewDraft,gpt:g.data})){modalClose();toast(StudyI18n.language==='en'?'Both ratings saved.':'Beide Bewertungen gespeichert.')}
   return;
  }if(modalKind==='semester'){if(await mutate(editId?'/api/semesters/'+editId:'/api/semesters',editId?'PATCH':'POST',{name:$('#f-sem-name').value})){modalClose();toast('Semester gespeichert.')}}
  else if(modalKind==='task'){const body={title:$('#f-title').value,description:$('#f-description').value,subject_id:$('#f-subject').value,planned_minutes:$('#f-estimate').value===''?null:Number($('#f-estimate').value),parent_id:$('#f-parent').value||null,status:$('#f-status').value,priority:$('#f-priority').value,due_date:$('#f-due').value||null,planned_for:$('#f-today').checked?dateKey(new Date()):null,tags:[...modalTags]};if(await mutate(editId?'/api/tasks/'+editId:'/api/tasks',editId?'PATCH':'POST',body)){modalClose();toast(editId?'Aufgabe aktualisiert.':'Aufgabe erstellt.')}}
@@ -328,7 +383,7 @@ function bind(){bindChartTooltips();hydrateIcons();StudyI18n.bind();$$('.nav-lin
  $('#archive-toggle').addEventListener('click',()=>{const open=$('#archive-content').hidden;$('#archive-content').hidden=!open;$('#archive-toggle').setAttribute('aria-expanded',String(open));if(open)renderArchive()});['archive-search','archive-range','archive-subject'].forEach(id=>$('#'+id).addEventListener(id==='archive-search'?'input':'change',renderArchive));
  ['task-search','task-filter-subject'].forEach(id=>$('#'+id).addEventListener(id==='task-search'?'input':'change',renderBoard));['insights-range','insights-subject'].forEach(id=>$('#'+id).addEventListener('change',()=>{renderInsights();renderTiming()}));$('#timing-view').addEventListener('change',renderTiming);['session-search','history-subject','history-range'].forEach(id=>$('#'+id).addEventListener(id==='session-search'?'input':'change',renderHistory));
  $('#modal-close').addEventListener('click',modalClose);$('#modal-layer').addEventListener('mousedown',e=>{if(e.target===$('#modal-layer'))modalClose()});document.addEventListener('keydown',e=>{if(e.key==='Escape')modalClose()});
- $('#modal-content').addEventListener('submit',handleModalSubmit);$('#modal-content').addEventListener('change',e=>{if(e.target.id==='review-outcome'){reviewDraft.outcome=e.target.value||null;reviewManualFields.add('outcome')}if(e.target.id==='review-issue'){reviewDraft.issue=e.target.value||null;reviewManualFields.add('issue')}if(e.target.id==='f-s-subject')populateSessionTasks();if(e.target.id==='f-subject')refreshParentOptions();if(e.target.id==='f-custom-color')markColor(e.target.value)});
+ $('#modal-content').addEventListener('submit',handleModalSubmit);$('#modal-content').addEventListener('input',e=>{if(e.target.id==='review-json')renderReviewComparison()});$('#modal-content').addEventListener('change',e=>{if(e.target.id==='review-outcome'){reviewDraft.outcome=e.target.value||null;renderReviewComparison()}if(e.target.id==='review-issue'){reviewDraft.issue=e.target.value||null;renderReviewComparison()}if(e.target.id==='f-s-subject')populateSessionTasks();if(e.target.id==='f-subject')refreshParentOptions();if(e.target.id==='f-custom-color')markColor(e.target.value)});
  document.addEventListener('click',async e=>{const target=e.target;
   let b=target.closest('[data-goto]');if(b)showPage(b.dataset.goto);
   b=target.closest('[data-add-status]');if(b)openTask(null,b.dataset.addStatus);
@@ -342,9 +397,10 @@ function bind(){bindChartTooltips();hydrateIcons();StudyI18n.bind();$$('.nav-lin
   b=target.closest('[data-semester-edit]');if(b)openSemester(b.dataset.semesterEdit);
   b=target.closest('[data-semester-delete]');if(b&&confirm('Semester löschen? Die Fächer bleiben erhalten und werden „Ohne Semester“ zugeordnet.')){if(await mutate('/api/semesters/'+b.dataset.semesterDelete,'DELETE',{}))toast('Semester entfernt.')}
   b=target.closest('[data-task-today]');if(b){const t=taskById(b.dataset.taskToday);if(t){const value=t.planned_for===dateKey(new Date())?null:dateKey(new Date());if(await mutate('/api/tasks/'+t.id,'PATCH',{planned_for:value}))toast(value?'Für heute markiert.':'Heute-Markierung entfernt.')}}
-  b=target.closest('[data-review-score]');if(b){reviewDraft[b.dataset.reviewScore]=b.dataset.reviewValue===''?null:Number(b.dataset.reviewValue);reviewManualFields.add(b.dataset.reviewScore);renderReviewControls();}
+  b=target.closest('[data-review-score]');if(b){reviewDraft[b.dataset.reviewScore]=b.dataset.reviewValue===''?null:Number(b.dataset.reviewValue);reviewManualFields.add(b.dataset.reviewScore);renderReviewControls();renderReviewComparison();}
   if(target.closest('#review-copy')){try{await navigator.clipboard.writeText(reviewPrompt);toast(StudyI18n.language==='en'?'Prompt copied.':'Prompt kopiert.')}catch{const f=$('#review-prompt');f.select();document.execCommand('copy');toast('Prompt kopiert.')}}
-  if(target.closest('#review-apply')){try{reviewDraft=parseReviewJson($('#review-json').value);reviewAppliedJson=$('#review-json').value.trim();renderReviewControls();toast(StudyI18n.language==='en'?'Suggestion applied. Please review it.':'Vorschlag übernommen. Bitte überprüfen.')}catch(err){toast(err.message,true)}}
+  b=target.closest('[data-review-use]');if(b){const v=gptAssessmentFromDialog();if(!v.error&&v.data?.[b.dataset.reviewUse]!=null){reviewDraft[b.dataset.reviewUse]=v.data[b.dataset.reviewUse];renderReviewControls();renderReviewComparison()}}
+  if(target.closest('#review-clear-gpt')){reviewGptDraft=null;reviewGptCleared=true;$('#review-json').value='';renderReviewComparison()}
   b=target.closest('[data-modal-cancel]');if(b)modalClose();
   b=target.closest('[data-modal-tag]');if(b){const id=b.dataset.modalTag;if(modalTags.has(id))modalTags.delete(id);else modalTags.add(id);b.classList.toggle('selected',modalTags.has(id))}
   b=target.closest('[data-color]');if(b)markColor(b.dataset.color);
@@ -365,4 +421,8 @@ function bind(){bindChartTooltips();hydrateIcons();StudyI18n.bind();$$('.nav-lin
  $('#copy-inbox').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('#inbox-path').textContent);toast('Relativen Inbox-Pfad kopiert.')}catch{toast($('#inbox-path').textContent)}});
  window.addEventListener('hashchange',()=>{if(user)showPage(location.hash.slice(1))});
 }
-(async()=>{bind();$('#today').textContent=new Date().toLocaleDateString(StudyI18n.locale(),{weekday:'long',day:'numeric',month:'long',year:'numeric'});try{await showAuth()}catch(e){toast(e.message,true)}setInterval(updateClock,1000);setInterval(async()=>{if(user&&state){try{const r=await api('/api/state');if(JSON.stringify(r.state.imports)!==JSON.stringify(state.imports)){state=r.state;renderAll();toast('Neue Aufgaben aus der Polybox-Inbox importiert.')}}catch{}}},5000)})();
+(async()=>{bind();$('#today').textContent=new Date().toLocaleDateString(StudyI18n.locale(),{weekday:'long',day:'numeric',month:'long',year:'numeric'});try{await showAuth()}catch(e){toast(e.message,true)}setInterval(updateClock,1000);setInterval(async()=>{if(user&&state){try{
+ const revision=await api('/api/profile/revision');if(revision.revision===profileRevision)return;
+ const r=await api('/api/state');const imported=JSON.stringify(r.state.imports)!==JSON.stringify(state.imports);
+ state=r.state;profileRevision=r.revision;renderAll();if(imported)toast('Neue Aufgaben aus der Polybox-Inbox importiert.');
+ }catch{}}},5000)})();

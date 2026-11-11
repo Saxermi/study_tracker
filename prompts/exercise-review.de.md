@@ -12,3 +12,5 @@ Kopiere diesen Prompt nach einer Übung in ChatGPT zusammen mit der Aufgabenstel
 Beispiel: `{"difficulty": 4, "outcome": "partial", "issue": "approach", "help_total": 3, "help_chatgpt": 2}`
 
 Du kannst das Ergebnis direkt in das JSON-Feld im Bewertungsdialog einfügen, auf **ChatGPT-Antwort übernehmen** klicken, die Werte prüfen und sie dann speichern. Keine Angaben sind verpflichtend. Es gibt aktuell **nur eine Bewertung pro Aufgabe** und keinen Prüfungs- oder Wiederholungsmodus.
+
+**StudyTracker 4.3:** Deine JSON-Antwort wird getrennt als GPT-Feedback gespeichert, nicht als eigene Bewertung. Ohne unabhängige Belege keine Übernahme der Selbstbewertung; unbelegte Felder mit `null` füllen.

@@ -183,3 +183,9 @@ Im Dialog gibt es einen kopierbaren ChatGPT-Prompt und ein Feld zum Einfügen ei
 ### ChatGPT-Bewertung speichern (Korrektur 4.2.1)
 
 Wenn du eine JSON-Antwort im Bewertungsdialog einfügst, übernimmt **Bewertung speichern** noch nicht angewendete Rückmeldungen direkt. Die Schaltfläche **ChatGPT-Antwort übernehmen** bleibt optional. Fehlende oder `null`-Werte überschreiben keine gespeicherten oder manuell gewählten Angaben; manuelle Werte haben Vorrang. Ungültiges JSON zeigt einen Fehler und verhindert das Speichern. Gespeicherte Bewertungen sind auch auf Aufgabenkarten, in Heute und im Archiv sichtbar.
+
+## 4.3 — Eigene Bewertung und GPT-Feedback getrennt
+
+Im Bewertungsdialog stehen jetzt **Meine Einschätzung** und **ChatGPT-Einschätzung** mit einem direkten Vergleich. Einzelne GPT-Werte kannst du bewusst übernehmen; ohne Klick bleibt deine Bewertung unverändert. Eingefügtes GPT-JSON wird beim Speichern separat gesichert. Alle Angaben sind freiwillig; das JSON-Beispiel im Dialog wird nie automatisch gespeichert. JSON-Backups und Aufgaben-CSV enthalten beide Quellen.
+
+Die Leerlauf-Abfrage überträgt nicht mehr alle fünf Sekunden das ganze Profil. Zusätzlich wird das Rendern großer Datenbestände optimiert. Siehe [Performance-Check](docs/PERFORMANCE.de.md) und [Bewertungsformat](docs/EXERCISE_REVIEW.de.md).

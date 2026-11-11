@@ -110,3 +110,7 @@ See [`prompts/email-to-tasks.md`](prompts/email-to-tasks.md) ([German](prompts/e
 ## Exercise review data (v4.2)
 
 A task may contain **one** optional `exercise_review` object, not an attempts array. The fields are `difficulty` (1–5), `outcome` (`correct`, `partial`, `incorrect`), `issue` (one of eight machine-readable issue codes), `help_total` (0–5), `help_chatgpt` (0–5). **Each is optional**, and `null` is distinct from `0`. Never fabricate an assessment from an email or unsupported chat context. If both help fields exist, `help_chatgpt` must not exceed `help_total`. See [schema](docs/EXERCISE_REVIEW.md) and [review prompt](prompts/exercise-review.md). Agent imports continue to use the existing `studytracker.tasks.v1` schema; assessment data is not inserted automatically by that task import flow.
+
+## 4.3 — Keep AI feedback separate
+
+Exercise ratings use two independent optional fields: `exercise_review` for the student's own rating and `exercise_review_gpt` for AI feedback manually pasted and saved. Never silently overwrite a student rating with AI suggestions. Never invent a rating without evidence. The task-import contract `studytracker.tasks.v1` is unchanged; **do not** add assessments to task-import JSON.

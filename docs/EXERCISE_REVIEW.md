@@ -1,24 +1,26 @@
-# Optional exercise assessment
+# Exercise ratings (StudyTracker 4.3)
 
-Every task optionally stores **one** assessment as `exercise_review`, **not per attempt**. Missing or completely blank assessments are represented by `null`. Each field is independently optional.
+There are **two separate optional ratings per exercise**, not a history of attempts:
 
-| Field | Allowed values | Meaning |
-| --- | --- | --- |
-| `difficulty` | `null` or 1–5 | perceived difficulty |
-| `outcome` | `null`, `correct`, `partial`, `incorrect` | fully/partially/incorrectly solved |
-| `issue` | `null`, `concept`, `approach`, `calculation`, `implementation`, `instructions`, `careless`, `time`, `verification` | main problem; eight choices |
-| `help_total` | `null` or 0–5 | total help from **all sources** |
-| `help_chatgpt` | `null` or 0–5 | amount of help **attributable to ChatGPT** |
+- `exercise_review`: **your own** assessment.
+- `exercise_review_gpt`: ChatGPT’s **suggested** assessment, saved separately after you paste JSON and click Save.
 
-`0` explicitly means no help; `null` means unanswered. If both help values are provided, `help_chatgpt <= help_total` must hold. Either can be provided independently.
+The dialog labels each source, displays a comparison, and provides **Use GPT** per field. GPT never silently replaces your rating. The copyable prompt is collapsible. The example JSON in the UI is illustrative and **not automatically saved**.
 
-API: `PATCH /api/tasks/{id}/review` with a JSON object such as `{"difficulty":4,"outcome":"partial"}`. **This replaces the whole assessment**; it is not a merge-patch. `{}` clears it. JSON backup and task CSV include values; legacy tasks with no `exercise_review` are treated as unassessed.
+## Example response
 
-Choose `Rate` on the Kanban board (including archived tasks). Checking off a task tagged “Exercises” optionally opens the dialog, which can be skipped. Copy prompt → ask ChatGPT → paste JSON response → apply suggestions → verify and save. No automated ChatGPT network access. See [prompt](../prompts/exercise-review.md).
+```json
+{"difficulty":3,"outcome":"partial","issue":"concept","help_total":4,"help_chatgpt":4}
+```
 
+All five fields may be left blank, independently: `difficulty` (1–5), `outcome` (`correct|partial|incorrect`), `issue` (one of `concept|approach|calculation|implementation|instructions|careless|time|verification`), `help_total` (0–5), `help_chatgpt` (0–5). `null` means not assessed; `0` means no help. If both help values are known, ChatGPT assistance must not exceed total help.
 
-### Pasted ChatGPT JSON and saving (bug fix)
+## API
 
-Pasting ChatGPT's JSON into the optional response field is now sufficient: clicking **Save assessment** validates and applies a pending response, even if **Apply ChatGPT response** was not clicked first. **Apply** remains available to preview the suggested values. Null or missing suggestions never erase saved or manually entered ratings; a value explicitly selected in this dialog takes precedence. Use the `—` button to clear a rating yourself. Malformed or invalid JSON prevents saving and shows an error rather than silently discarding pasted feedback.
+`PATCH /api/tasks/{id}/review` accepts a combined atomic payload:
 
-After saving, the task card, Today's tasks and archive display a concise summary (difficulty, outcome and assistance when available), and reopening the dialog loads the persisted assessment.
+```json
+{"self":{"difficulty":2},"gpt":{"difficulty":3,"outcome":"partial","issue":"concept","help_total":4,"help_chatgpt":4}}
+```
+
+Omit a source to preserve it; explicitly send `null` to clear it. Old clients may still send a flat `{"difficulty":2}` payload; it updates **only** the self-rating. Older profiles lacking `exercise_review_gpt` load normally. Both sources are exported in backups and separate CSV columns. Chat transcripts are not stored.
