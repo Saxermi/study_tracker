@@ -35,3 +35,11 @@
 - Je Aufgabe eine freiwillige Bewertung mit unabhängig optionalen Werten für Schwierigkeit, Ergebnis, acht Fehlerarten sowie Gesamt- und ChatGPT-Hilfe.
 - Kopierbarer ChatGPT-Prompt (DE/EN) und manuelle Übernahme von JSON-Vorschlägen.
 - Bewertungen im Task-CSV und JSON-Backup; alte Aufgaben bleiben kompatibel. Kein Prüfungsmodus und keine Versuchshistorie.
+
+
+## 4.2.1 — Exercise-Bewertungen und ChatGPT-JSON speichern
+
+- Eingefügtes ChatGPT-JSON wird auch direkt mit **Bewertung speichern** übernommen.
+- Manuelle Bewertungen haben Vorrang; unbekannte (`null`) Vorschläge löschen keine vorhandenen Werte. Bei ungültigem JSON wird nicht gespeichert.
+- Gespeicherte Schwierigkeit, Ergebnis und Hilfe werden in Kanban, Heute und im Archiv angezeigt.
+- Neue JavaScript-Regressionsprüfungen in GitHub Actions.

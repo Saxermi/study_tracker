@@ -15,3 +15,10 @@ Eine Aufgabe speichert optional **eine** Bewertung im Feld `exercise_review` (ke
 API: `PATCH /api/tasks/{id}/review` mit JSON-Objekt, z. B. `{"difficulty":4,"outcome":"partial"}`. **Dieser Aufruf ersetzt die gesamte Bewertung**, nicht nur einzelne Felder. Ein leeres `{}` löscht die Bewertung. JSON-Backup und Task-CSV enthalten die Werte. Für ein altes Profil ohne `exercise_review` wird `null` angenommen.
 
 Im Kanban (auch im Archiv) `Bewerten` öffnen. Für einen mit „Übungen“ markierten Task wird nach dem Abhaken optional der Dialog geöffnet und kann übersprungen werden. Prompt kopieren → ChatGPT-Antwort als JSON einfügen → Vorschläge übernehmen → selbst bestätigen und speichern. Es gibt keinen automatischen Netzwerkzugriff auf ChatGPT. Siehe [Prompt](../prompts/exercise-review.de.md).
+
+
+### Eingefügte ChatGPT-Antwort speichern (Fehlerkorrektur)
+
+Wenn du eine ChatGPT-JSON-Antwort eingefügt hast, reicht jetzt **Bewertung speichern**: eine noch nicht übernommene Antwort wird vor dem Speichern geprüft und angewendet. Über **ChatGPT-Antwort übernehmen** kannst du die Werte weiterhin zuerst ansehen. `null` und fehlende Felder löschen keine gespeicherten oder manuell eingegebenen Bewertungen; explizite Änderungen im Dialog haben Vorrang. Mit **—** kannst du ein Feld selbst leeren. Fehlerhaftes JSON verhindert das Speichern und zeigt eine Fehlermeldung an, statt stillschweigend ignoriert zu werden.
+
+Aufgabenkarte, Heute-Ansicht und Archiv zeigen nach dem Speichern eine kurze Zusammenfassung der bewerteten Felder. Beim erneuten Öffnen werden die gespeicherten Werte geladen.

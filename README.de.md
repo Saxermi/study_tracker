@@ -178,3 +178,8 @@ node --check static/i18n.js
 Über **Bewerten** auf einer Kanban-Karte (auch im Archiv) kann jede Aufgabe höchstens **eine Bewertung** erhalten: Schwierigkeit (1–5), Lösungserfolg (richtig/teilweise/falsch), acht mögliche Hauptprobleme, Gesamthilfe (0–5) und ChatGPT-Hilfe (0–5). Alle Angaben sind freiwillig, auch die gesamte Bewertung kann leer bleiben. `0` bedeutet ausdrücklich keine Hilfe, ein leeres Feld **nicht bewertet**. Dies ist **kein** Versuchstagebuch oder Prüfungsmodus.
 
 Im Dialog gibt es einen kopierbaren ChatGPT-Prompt und ein Feld zum Einfügen einer JSON-Antwort. Vorschläge werden erst nach deiner Überprüfung und Bestätigung gespeichert. JSON-Backup und Aufgaben-CSV enthalten die Bewertung. Siehe [Bewertungsformat](docs/EXERCISE_REVIEW.de.md) und [deutscher Prompt](prompts/exercise-review.de.md).
+
+
+### ChatGPT-Bewertung speichern (Korrektur 4.2.1)
+
+Wenn du eine JSON-Antwort im Bewertungsdialog einfügst, übernimmt **Bewertung speichern** noch nicht angewendete Rückmeldungen direkt. Die Schaltfläche **ChatGPT-Antwort übernehmen** bleibt optional. Fehlende oder `null`-Werte überschreiben keine gespeicherten oder manuell gewählten Angaben; manuelle Werte haben Vorrang. Ungültiges JSON zeigt einen Fehler und verhindert das Speichern. Gespeicherte Bewertungen sind auch auf Aufgabenkarten, in Heute und im Archiv sichtbar.

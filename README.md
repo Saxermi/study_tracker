@@ -196,3 +196,8 @@ Latest suite: **21 passing tests**, including multi-user isolation, CSV/JSON, br
 Use **Rate** on a Kanban task, including archived tasks. Each task holds at most **one assessment**: difficulty (1–5), result (correct/partial/incorrect), one of eight possible problems, total assistance (0–5), and ChatGPT assistance (0–5). Every field is optional; leaving every field empty is supported. `0` means explicitly no assistance, while a blank answer means **not assessed**. This is **not** an attempt history or an exam mode.
 
 The dialog includes a copyable ChatGPT prompt and a field to paste its JSON response. Suggested values are never saved automatically; you review them and click Save. Ratings are included in the profile JSON backup and tasks CSV. See [exercise assessment details](docs/EXERCISE_REVIEW.md) and the [English prompt](prompts/exercise-review.md).
+
+
+### ChatGPT assessment saving (4.2.1 fix)
+
+If you paste a JSON response into the exercise assessment dialog, **Save assessment** now applies pending feedback directly; clicking **Apply ChatGPT response** first is optional. Missing or `null` AI suggestions will not erase saved or manually selected values, and manually selected values take precedence. Invalid JSON is rejected with a visible error. Saved ratings are summarized on task cards, the Today view and the archive.
