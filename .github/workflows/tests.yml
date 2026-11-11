@@ -22,8 +22,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: JavaScript syntax and time analysis tests
+      - name: JavaScript syntax and regression tests
         run: |
           node --check static/app.js
           node --check static/i18n.js
-          TZ=Europe/Zurich node --test tests/test_time_analysis.cjs
+          node --check static/exercise_review_import.js
+          TZ=Europe/Zurich node --test tests/*.cjs

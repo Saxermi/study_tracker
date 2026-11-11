@@ -35,3 +35,11 @@
 - One optional review per task, with independently optional difficulty, outcome, eight problem codes, total help, and ChatGPT help.
 - Copyable German/English ChatGPT prompt and manual JSON suggestion import in the assessment dialog.
 - Reviews in task CSV and backup JSON; legacy and unassessed tasks remain supported. No exam mode or attempt history.
+
+
+## 4.2.1 — Exercise review persistence & ChatGPT JSON save fix
+
+- Saving a pasted ChatGPT JSON response now applies it, even without first clicking **Apply ChatGPT response**.
+- Manual ratings take precedence; unknown (`null`) AI values do not erase existing ratings. Invalid JSON blocks save with an error.
+- Saved difficulty, solution outcome and assistance appear on task cards, Today and the Kanban archive.
+- Added Node regression tests and CI coverage of JSON feedback imports.
