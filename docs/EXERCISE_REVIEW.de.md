@@ -1,24 +1,26 @@
-# Optionale Exercise-Bewertung
+# Übungsbewertungen (StudyTracker 4.3)
 
-Eine Aufgabe speichert optional **eine** Bewertung im Feld `exercise_review` (kein Versuchstagebuch). Fehlende oder vollständig leere Bewertungen werden als `null` gespeichert. Alle Einzelfelder können unabhängig voneinander leer bleiben.
+Eine Aufgabe kann **zwei getrennte optionale Bewertungen** enthalten, kein Versuchstagebuch:
 
-| Feld | Gültige Werte | Bedeutung |
-| --- | --- | --- |
-| `difficulty` | `null` oder 1–5 | empfundene Schwierigkeit |
-| `outcome` | `null`, `correct`, `partial`, `incorrect` | richtig / teilweise / falsch |
-| `issue` | `null`, `concept`, `approach`, `calculation`, `implementation`, `instructions`, `careless`, `time`, `verification` | Hauptproblem, acht Möglichkeiten |
-| `help_total` | `null` oder 0–5 | Hilfe durch **alle Quellen** |
-| `help_chatgpt` | `null` oder 0–5 | Anteil der Hilfe **durch ChatGPT** |
+- `exercise_review`: **deine eigene** Bewertung.
+- `exercise_review_gpt`: die **Einschätzung von ChatGPT**, getrennt gespeichert.
 
-`0` bedeutet ausdrücklich keine Hilfe, `null` bedeutet nicht beantwortet. Wenn beide Hilfewerte vorhanden sind, muss `help_chatgpt <= help_total` gelten; nur eines der beiden Felder auszufüllen ist erlaubt.
+Beide Quellen werden klar beschriftet und verglichen. Mit **Übernehmen** wählst du einzelne GPT-Werte ausdrücklich aus; sie ersetzen deine eigene Einschätzung niemals automatisch. Der Prompt ist aufklappbar. Das JSON-Beispiel wird **nicht** automatisch gespeichert.
 
-API: `PATCH /api/tasks/{id}/review` mit JSON-Objekt, z. B. `{"difficulty":4,"outcome":"partial"}`. **Dieser Aufruf ersetzt die gesamte Bewertung**, nicht nur einzelne Felder. Ein leeres `{}` löscht die Bewertung. JSON-Backup und Task-CSV enthalten die Werte. Für ein altes Profil ohne `exercise_review` wird `null` angenommen.
+## Beispiel
 
-Im Kanban (auch im Archiv) `Bewerten` öffnen. Für einen mit „Übungen“ markierten Task wird nach dem Abhaken optional der Dialog geöffnet und kann übersprungen werden. Prompt kopieren → ChatGPT-Antwort als JSON einfügen → Vorschläge übernehmen → selbst bestätigen und speichern. Es gibt keinen automatischen Netzwerkzugriff auf ChatGPT. Siehe [Prompt](../prompts/exercise-review.de.md).
+```json
+{"difficulty":3,"outcome":"partial","issue":"concept","help_total":4,"help_chatgpt":4}
+```
 
+Jedes Feld kann leer bleiben: `difficulty` (1–5), `outcome` (`correct|partial|incorrect`), `issue` (`concept|approach|calculation|implementation|instructions|careless|time|verification`), `help_total` (0–5), `help_chatgpt` (0–5). `null` = keine Angabe, `0` = keine Hilfe. ChatGPT-Hilfe darf bei bekannten Werten nicht größer als Gesamthilfe sein.
 
-### Eingefügte ChatGPT-Antwort speichern (Fehlerkorrektur)
+## API
 
-Wenn du eine ChatGPT-JSON-Antwort eingefügt hast, reicht jetzt **Bewertung speichern**: eine noch nicht übernommene Antwort wird vor dem Speichern geprüft und angewendet. Über **ChatGPT-Antwort übernehmen** kannst du die Werte weiterhin zuerst ansehen. `null` und fehlende Felder löschen keine gespeicherten oder manuell eingegebenen Bewertungen; explizite Änderungen im Dialog haben Vorrang. Mit **—** kannst du ein Feld selbst leeren. Fehlerhaftes JSON verhindert das Speichern und zeigt eine Fehlermeldung an, statt stillschweigend ignoriert zu werden.
+`PATCH /api/tasks/{id}/review` unterstützt:
 
-Aufgabenkarte, Heute-Ansicht und Archiv zeigen nach dem Speichern eine kurze Zusammenfassung der bewerteten Felder. Beim erneuten Öffnen werden die gespeicherten Werte geladen.
+```json
+{"self":{"difficulty":2},"gpt":{"difficulty":3,"outcome":"partial","issue":"concept","help_total":4,"help_chatgpt":4}}
+```
+
+Ausgelassene Quellen bleiben erhalten, `null` löscht die Quelle. Alte flache Anfragen bearbeiten weiterhin **nur deine eigene Bewertung**. Bestehende Profile ohne `exercise_review_gpt` bleiben gültig. Beide Quellen erscheinen getrennt in JSON-Backups und CSV. Chatverläufe werden nicht gespeichert.

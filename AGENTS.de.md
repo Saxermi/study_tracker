@@ -105,3 +105,7 @@ Siehe [`prompts/email-to-tasks.de.md`](prompts/email-to-tasks.de.md) ([English](
 ## Exercise-Bewertungsdaten (v4.2)
 
 Eine Aufgabe darf **eine** optionale `exercise_review`-Bewertung besitzen, keine Liste von Lösungsversuchen. Felder: `difficulty` (1–5), `outcome` (`correct`, `partial`, `incorrect`), `issue` (einer von acht Codes), `help_total` (0–5), `help_chatgpt` (0–5). **Jedes Feld ist optional**; `null` ist nicht das gleiche wie `0`. Eine KI darf die Bewertung nicht aus E-Mails oder unvollständigen Chatverläufen erfinden. Wenn beide Hilfefelder gesetzt sind, darf ChatGPT-Hilfe nicht größer als Gesamthilfe sein. Siehe [Format](docs/EXERCISE_REVIEW.de.md) und [Prompt](prompts/exercise-review.de.md). Der bisherige Aufgabenimport `studytracker.tasks.v1` bleibt unverändert; Bewertungen werden dabei nicht automatisch importiert.
+
+## 4.3 — KI-Feedback getrennt behandeln
+
+Übungsbewertungen haben zwei unabhängige optionale Quellen: `exercise_review` für die eigene Bewertung und `exercise_review_gpt` für ausdrücklich eingefügtes KI-Feedback. Eigene Bewertungen niemals stillschweigend ersetzen und fehlende Grundlagen nicht erfinden. Das Aufgabenimportformat `studytracker.tasks.v1` bleibt unverändert; keine Bewertungen in Agenten-Importdateien einfügen.

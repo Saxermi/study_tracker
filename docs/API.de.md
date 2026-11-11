@@ -43,3 +43,9 @@ Timer-created sessions include an optional `focus_intervals` array of `{ "starte
 
 ## Optionale Exercise-Bewertung
 `PATCH /api/tasks/{id}/review` ersetzt die vollständige optionale `exercise_review`-Bewertung. Alle Werte dürfen einzeln `null` sein; `{}` löscht die Bewertung. Das Feld ist in Tasks und JSON-Backups enthalten; der Aufgaben-CSV-Export hat fünf weitere Spalten. Siehe [Format](EXERCISE_REVIEW.de.md).
+
+## 4.3 — Zwei Bewertungsquellen und Profiländerungen
+
+`PATCH /api/tasks/{id}/review` unterstützt `{"self":{"difficulty":2},"gpt":{"difficulty":3}}`. Fehlende Quellen bleiben unverändert, explizites `null` löscht sie. Alte flache Anfragen ändern nur die eigene Bewertung. Tasks und JSON-Backups enthalten `exercise_review` und `exercise_review_gpt` getrennt; Aufgaben-CSV bekommt eigene Spalten für beide.
+
+Das authentifizierte `GET /api/profile/revision` liefert eine kleine Änderungskennung als Zeichenkette. `GET /api/state` und Mutationen geben die gleiche Kennung zurück, um unnötige vollständige Profil-Downloads zu vermeiden.

@@ -43,3 +43,10 @@
 - Manuelle Bewertungen haben Vorrang; unbekannte (`null`) Vorschläge löschen keine vorhandenen Werte. Bei ungültigem JSON wird nicht gespeichert.
 - Gespeicherte Schwierigkeit, Ergebnis und Hilfe werden in Kanban, Heute und im Archiv angezeigt.
 - Neue JavaScript-Regressionsprüfungen in GitHub Actions.
+
+## 4.3 — Eigene Bewertung vs. GPT und weniger Leerlauf-Daten
+
+- Eigene Übungsbewertungen und GPT-Feedback werden getrennt gespeichert, verglichen und als JSON/CSV exportiert.
+- Der Dialog zeigt ein klares JSON-Beispiel statt eines irreführenden Platzhalters. Einzelne Werte werden nur bewusst übernommen.
+- Speichern verarbeitet eingefügtes JSON direkt; neue Prüfungen gegen ungültige Daten.
+- Kleine Änderungskennung statt vollständiger Profilabfrage alle fünf Sekunden; indexierte Lookups und verzögertes Rendern unsichtbarer Ansichten. Performance-Dokumentation ergänzt.

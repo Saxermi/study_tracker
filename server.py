@@ -264,6 +264,7 @@ def load_profile(user_id: str):
         t.setdefault("parent_id", None)
         t.setdefault("planned_for", None)
         t.setdefault("exercise_review", None)
+        t.setdefault("exercise_review_gpt", None)
     return data
 
 
@@ -573,7 +574,7 @@ def add_agent_tasks(state, payload):
                                    "due_date": item.get("due_date"), "planned_for": item.get("planned_for"),
                                    "tags": tag_ids})
         created = {"id": uid(), **row, "external_id": ext,
-                   "created_at": iso(), "updated_at": iso(), "completed_at": None, "exercise_review": None}
+                   "created_at": iso(), "updated_at": iso(), "completed_at": None, "exercise_review": None, "exercise_review_gpt": None}
         staged["tasks"].append(created)
         known_external[ext] = created
         parent_external = item.get("parent_external_id")
@@ -696,7 +697,16 @@ def mutate(user_id, method, path, body):
             row = task(s, parts[2])
             if not isinstance(body, dict):
                 err("Ungültige Bewertung.")
-            row["exercise_review"] = validate_exercise_review(body)
+            # Keep student and AI ratings independently, while accepting old clients.
+            if "self" in body or "gpt" in body:
+                if set(body) - {"self", "gpt"}:
+                    err("Unbekanntes Bewertungsfeld.")
+                student = validate_exercise_review(body["self"]) if "self" in body else row.get("exercise_review")
+                ai = validate_exercise_review(body["gpt"]) if "gpt" in body else row.get("exercise_review_gpt")
+                row["exercise_review"] = student
+                row["exercise_review_gpt"] = ai
+            else:
+                row["exercise_review"] = validate_exercise_review(body)
             row["updated_at"] = iso()
         elif len(parts) == 3 and parts[1] == "tasks" and method == "DELETE":
             row = task(s, parts[2])
@@ -835,7 +845,8 @@ def validate_backup(v):
                            "created_at": timestamp(tr.get("created_at", iso())).isoformat(timespec="seconds"),
                            "updated_at": timestamp(tr.get("updated_at", iso())).isoformat(timespec="seconds"),
                            "completed_at": timestamp(tr["completed_at"]).isoformat(timespec="seconds") if tr.get("completed_at") else None,
-                           "exercise_review": validate_exercise_review(tr.get("exercise_review"))})
+                           "exercise_review": validate_exercise_review(tr.get("exercise_review")),
+                           "exercise_review_gpt": validate_exercise_review(tr.get("exercise_review_gpt"))})
     for raw in v["tasks"]:
         row = task(s, raw["id"])
         row["parent_id"] = validate_parent(s, raw.get("parent_id"), row["id"], row["subject_id"])
@@ -917,7 +928,7 @@ def export_csv(state, kind):
                              f'{sr.get("break_seconds", 0)/60:.2f}'.replace(".", ","),
                              protect(" | ".join(b["started_at"]+" bis "+b["ended_at"] for b in sr.get("breaks", []))), sr["source"], protect(sr["notes"]), protect(tag_names.get(sr["category_tag_id"] if "category_tag_id" in sr else (sr.get("tags") or [None])[0], "Ohne Kategorie"))])
     elif kind == "tasks":
-        writer.writerow(["ID", "Fach", "Semester", "Titel", "Hauptaufgabe ID", "Status", "Priorität", "Fällig", "Geplant für", "Geschätzt min", "Ist min", "Abweichung min", "Abweichung %", "Tags", "Extern-ID", "Ist gesamt inkl Unteraufgaben min", "Schätzung für Auswertung min", "Abweichung für Auswertung min", "Schwierigkeit (1-5)", "Lösungserfolg", "Hauptproblem", "Gesamthilfe (0-5)", "ChatGPT-Hilfe (0-5)"])
+        writer.writerow(["ID", "Fach", "Semester", "Titel", "Hauptaufgabe ID", "Status", "Priorität", "Fällig", "Geplant für", "Geschätzt min", "Ist min", "Abweichung min", "Abweichung %", "Tags", "Extern-ID", "Ist gesamt inkl Unteraufgaben min", "Schätzung für Auswertung min", "Abweichung für Auswertung min", "Schwierigkeit (1-5)", "Lösungserfolg", "Hauptproblem", "Gesamthilfe (0-5)", "ChatGPT-Hilfe (0-5)", "GPT Schwierigkeit (1-5)", "GPT Lösungserfolg", "GPT Hauptproblem", "GPT Gesamthilfe (0-5)", "GPT ChatGPT-Hilfe (0-5)"])
         used = {}
         for sr in state["sessions"]:
             if sr.get("task_id"):
@@ -936,7 +947,8 @@ def export_csv(state, kind):
                              f"{full_actual:.2f}".replace(".", ","),
                              "" if full_planned is None else full_planned,
                              "" if full_planned is None else f"{full_actual-full_planned:.2f}".replace(".", ","),
-                             *[(t.get("exercise_review") or {}).get(k) if (t.get("exercise_review") or {}).get(k) is not None else "" for k in REVIEW_KEYS]])
+                             *[(t.get("exercise_review") or {}).get(k) if (t.get("exercise_review") or {}).get(k) is not None else "" for k in REVIEW_KEYS],
+                             *[(t.get("exercise_review_gpt") or {}).get(k) if (t.get("exercise_review_gpt") or {}).get(k) is not None else "" for k in REVIEW_KEYS]])
     else:
         err("Nur sessions und tasks als CSV verfügbar.")
     return ("\ufeff" + stream.getvalue()).encode("utf-8")
@@ -984,7 +996,7 @@ def ingest_inbox_once() -> list[dict]:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "StudyTracker/4.2"
+    server_version = "StudyTracker/4.3"
 
     def json_response(self, status, data, headers=None):
         self.raw_response(status, json.dumps(data, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8", headers)
@@ -1026,7 +1038,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self.json_response(200, {"setup_required": not bool(a["users"]), "user": public_user(u) if u else None})
             if route.path == "/api/state":
                 u = self.get_user(True)
-                return self.json_response(200, {"state": load_profile(u["id"]), "user": public_user(u), "server_time": iso()})
+                return self.json_response(200, {"state": load_profile(u["id"]), "user": public_user(u), "server_time": iso(),
+                                                "revision": str(profile_path(u["id"]).stat().st_mtime_ns)})
+            if route.path == "/api/profile/revision":
+                u = self.get_user(True)
+                return self.json_response(200, {"revision": str(profile_path(u["id"]).stat().st_mtime_ns)})
             if route.path == "/api/users":
                 u = self.get_user(True)
                 if u["role"] != "admin":
@@ -1100,6 +1116,8 @@ class Handler(BaseHTTPRequestHandler):
                 u = create_user(body, first=False)
                 return self.json_response(200, {"user": u})
             result = mutate(user["id"], method, path, body)
+            if isinstance(result, dict) and "state" in result:
+                result["revision"] = str(profile_path(user["id"]).stat().st_mtime_ns)
             return self.json_response(200, result)
         except ClientError as e:
             self.json_response(e.status, {"error": e.message})

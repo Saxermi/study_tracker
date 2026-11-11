@@ -39,5 +39,13 @@
     return updated;
   }
 
-  return {applySuggestion};
+  function parseFeedback(raw){
+    const content=String(raw||'').trim().replace(/^\`\`\`(?:json)?\s*/i,'').replace(/\s*\`\`\`$/,'').trim();
+    const data=JSON.parse(content);
+    if(!data||typeof data!=='object'||Array.isArray(data))throw Error('JSON object expected');
+    if(!FIELDS.some(k=>Object.prototype.hasOwnProperty.call(data,k)))throw Error('No recognized assessment fields');
+    const validated=applySuggestion(content,{},[]);
+    return Object.keys(validated).length?validated:null;
+  }
+  return {applySuggestion,parseFeedback};
 });

@@ -43,3 +43,10 @@
 - Manual ratings take precedence; unknown (`null`) AI values do not erase existing ratings. Invalid JSON blocks save with an error.
 - Saved difficulty, solution outcome and assistance appear on task cards, Today and the Kanban archive.
 - Added Node regression tests and CI coverage of JSON feedback imports.
+
+## 4.3 — Separate self/GPT ratings and lighter idle polling
+
+- GPT exercise feedback and personal ratings are stored separately, visible side by side, and preserved in backups and CSV.
+- The dialog shows an explicit JSON example, not a misleading placeholder. Copying individual GPT values into the personal assessment is always manual.
+- Added single-response save semantics, input validation and regression tests.
+- Replaced full-state idle polling with a small revision token; indexed repeated task/session lookups and lazy-rendered hidden views. Added performance documentation.

@@ -44,3 +44,9 @@ Timer-created sessions include an optional `focus_intervals` array of `{ "starte
 
 ## Optional exercise assessment
 `PATCH /api/tasks/{id}/review` sets the full optional `exercise_review` object. All values are independently nullable; `{}` clears it. The field appears in task responses and JSON backups. Task CSV contains five columns. See [exercise review](EXERCISE_REVIEW.md).
+
+## 4.3 — Two-source exercise ratings and profile revision
+
+`PATCH /api/tasks/{id}/review` supports an atomic payload `{"self":{"difficulty":2},"gpt":{"difficulty":3}}`. A missing source is preserved; an explicit `null` clears that source. The legacy flat payload still modifies only the self rating. Tasks/JSON exports include `exercise_review` and `exercise_review_gpt`, both optional; tasks CSV includes distinct columns.
+
+Authenticated `GET /api/profile/revision` returns a small opaque string `revision`; `GET /api/state` and mutation responses include the same revision, so a client need not download unchanged profiles.

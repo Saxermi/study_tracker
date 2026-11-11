@@ -11,3 +11,5 @@ Copy this prompt into ChatGPT after an exercise, together with the actual exerci
 Example: `{"difficulty": 4, "outcome": "partial", "issue": "approach", "help_total": 3, "help_chatgpt": 2}`
 
 Paste the response into the JSON field in the assessment dialog, choose **Apply ChatGPT response**, review values, and save. All fields are optional. Currently there is **only one assessment per task**, not one per attempt, and no exam or repeat-attempt mode.
+
+**StudyTracker 4.3:** Your JSON will be stored as GPT feedback, distinct from the student's own assessment. Never copy the student's self-rating without independent evidence; use `null` for unsupported values.
