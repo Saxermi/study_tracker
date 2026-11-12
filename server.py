@@ -536,21 +536,38 @@ def add_agent_tasks(state, payload):
         if ext in known_external:
             skipped += 1
             continue
-        subject_name = txt(item.get("subject", ""), "Fach", 60, True)
+        # Agents may pin an import to an EXISTING module by its internal ID.
+        # Name-based imports remain compatible, but IDs never create new modules.
+        requested_sid = item.get("subject_id")
+        subject_name = txt(item.get("subject") or "", "Fach", 60)
         sem_name = txt(item.get("semester") or "", "Semester", 80)
+        if requested_sid is not None:
+            requested_sid = txt(requested_sid, "Fach-ID", 80, True)
+            sub = subject(staged, requested_sid)
+            if subject_name and subject_name.casefold() != sub["name"].casefold():
+                err("Fach-ID und Fachname passen nicht zusammen.")
+            if sem_name:
+                selected_sem = next((x for x in staged["semesters"] if x["id"] == sub.get("semester_id")), None)
+                if not selected_sem or selected_sem["name"].casefold() != sem_name.casefold():
+                    err("Semester passt nicht zur gewählten Fach-ID.")
+        elif not subject_name:
+            err("Entweder 'subject_id' oder 'subject' ist erforderlich.")
+        else:
+            sub = None
         sem = None
-        if sem_name:
+        if requested_sid is None and sem_name:
             sem = next((x for x in staged["semesters"] if x["name"].casefold() == sem_name.casefold()), None)
             if sem is None:
                 sem = {"id": uid(), "name": sem_name}
                 staged["semesters"].append(sem)
-        matches = [x for x in staged["subjects"] if x["name"].casefold() == subject_name.casefold()]
-        if sem:
-            sub = next((x for x in matches if x.get("semester_id") == sem["id"]), None)
-        elif len(matches) > 1:
-            err("Mehrere Fächer mit diesem Namen. Bitte 'semester' im Import angeben.")
-        else:
-            sub = matches[0] if matches else None
+        if requested_sid is None:
+            matches = [x for x in staged["subjects"] if x["name"].casefold() == subject_name.casefold()]
+            if sem:
+                sub = next((x for x in matches if x.get("semester_id") == sem["id"]), None)
+            elif len(matches) > 1:
+                err("Mehrere Fächer mit diesem Namen. Bitte 'semester' im Import angeben.")
+            else:
+                sub = matches[0] if matches else None
         if not sub:
             sub = {"id": uid(), "name": subject_name, "color": COLORS[len(staged["subjects"]) % len(COLORS)],
                    "weekly_goal_minutes": None, "semester_id": sem["id"] if sem else None, "archived": False}
@@ -578,16 +595,21 @@ def add_agent_tasks(state, payload):
         staged["tasks"].append(created)
         known_external[ext] = created
         parent_external = item.get("parent_external_id")
-        if parent_external:
-            links.append((created, txt(parent_external, "Externe Hauptaufgaben-ID", 160, True)))
+        parent_internal = item.get("parent_id")
+        if parent_external and parent_internal:
+            err("Nur 'parent_id' oder 'parent_external_id' angeben, nicht beide.")
+        if parent_internal is not None:
+            links.append((created, "internal", txt(parent_internal, "Hauptaufgaben-ID", 80, True)))
+        elif parent_external:
+            links.append((created, "external", txt(parent_external, "Externe Hauptaufgaben-ID", 160, True)))
         added += 1
     # Resolve parent links in a separate pass, regardless of JSON task order.
-    for child, parent_external in links:
-        parent = known_external.get(parent_external)
+    for child, kind, parent_key in links:
+        parent = known_external.get(parent_key) if kind == "external" else task(staged, parent_key)
         if not parent:
-            err(f"Hauptaufgabe nicht gefunden: {parent_external}")
+            err(f"Hauptaufgabe nicht gefunden: {parent_key}")
         child["parent_id"] = validate_parent(staged, parent["id"], child["id"], child["subject_id"])
-    for parent_id in {child["parent_id"] for child, _ in links}:
+    for parent_id in {child["parent_id"] for child, _, _ in links}:
         reconcile_parent(staged, parent_id)
     staged["imports"].append({"batch_id": batch_id, "at": iso(), "added": added, "skipped": skipped})
     state.clear()
@@ -1065,7 +1087,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.raw_response(200, body, mime, {"Content-Disposition": f'attachment; filename="{name}"'})
             if route.path in ("/", "/index.html"):
                 path, mime = STATIC / "index.html", "text/html; charset=utf-8"
-            elif route.path in ("/app.js", "/app.css", "/features.css", "/i18n.js", "/time_analysis.js", "/exercise_review_import.js", "/favicon.svg"):
+            elif route.path in ("/app.js", "/app.css", "/features.css", "/i18n.js", "/time_analysis.js", "/exercise_review_import.js", "/import_wizard.js", "/favicon.svg"):
                 path = STATIC / route.path.lstrip("/")
                 mime = {".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml"}[path.suffix]
             else:

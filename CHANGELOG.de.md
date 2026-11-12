@@ -1,5 +1,13 @@
 # Changelog (Deutsch)
 
+## 4.4 — Import-Assistent mit geprüften Fach- und Hauptaufgaben-IDs
+
+- Import-Assistent direkt in Einstellungen mit Fach- und optionaler Hauptaufgabenauswahl.
+- Sieben Quellenarten (E-Mail, ChatGPT-Aufteilung, PDF-Übungsblatt, Vorlesungsfolien, Kursplattform, Semesterplan, Notizen) mit deutschen/englischen Markdown-Anleitungen.
+- Kopierbarer und herunterladbarer Prompt mit gültigen `subject_id`/`parent_id`-Werten.
+- Importer prüft Zuordnungen atomar und unterstützt weiterhin Name-basierte Importdateien.
+
+
 ## 4.1 — Lernzeit-Heatmap (24h / 48h / typische Woche)
 
 - Neue Heatmap mit 24-/48-Stunden-Ansicht und typischer Woche (Durchschnitt oder Summe), Fachfilter und zugänglichen Tooltips.

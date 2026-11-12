@@ -114,3 +114,7 @@ A task may contain **one** optional `exercise_review` object, not an attempts ar
 ## 4.3 — Keep AI feedback separate
 
 Exercise ratings use two independent optional fields: `exercise_review` for the student's own rating and `exercise_review_gpt` for AI feedback manually pasted and saved. Never silently overwrite a student rating with AI suggestions. Never invent a rating without evidence. The task-import contract `studytracker.tasks.v1` is unchanged; **do not** add assessments to task-import JSON.
+
+## Version 4.4: verified IDs from the Import assistant
+
+For ID-targeted imports, the user provides `subject_id` from **Settings → Import assistant**. Reuse it exactly on **every** task; `subject` can be omitted. `parent_id` refers only to a selected existing root task. When creating a new parent, give it an `external_id` and link direct child objects using `parent_external_id` (no nested arrays). Never provide both parent keys, create deeper levels, or invent IDs. Agents cannot read private user profiles. Seven bilingual source playbooks are in [`prompts/import/`](prompts/import/): email, ChatGPT breakdown, exercise sheet/PDF, lecture notes, course platform announcement, syllabus and personal notes. JSON remains `studytracker.tasks.v1`; legacy name-based imports are still supported.

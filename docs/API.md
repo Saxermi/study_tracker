@@ -50,3 +50,7 @@ Timer-created sessions include an optional `focus_intervals` array of `{ "starte
 `PATCH /api/tasks/{id}/review` supports an atomic payload `{"self":{"difficulty":2},"gpt":{"difficulty":3}}`. A missing source is preserved; an explicit `null` clears that source. The legacy flat payload still modifies only the self rating. Tasks/JSON exports include `exercise_review` and `exercise_review_gpt`, both optional; tasks CSV includes distinct columns.
 
 Authenticated `GET /api/profile/revision` returns a small opaque string `revision`; `GET /api/state` and mutation responses include the same revision, so a client need not download unchanged profiles.
+
+## Import assistant ID fields (v4.4)
+
+`POST /api/import/tasks` accepts optional `subject_id` instead of `subject`; IDs must exist in the authenticated profile. If both are supplied, they must refer to the same subject, and an optional `semester` must match its assignment. `parent_id` attaches a new child to an existing root task in the same subject; for newly created parent tasks use `parent_external_id`. Both parent keys together are invalid. Invalid IDs reject the entire batch atomically. The envelope remains `studytracker.tasks.v1`.

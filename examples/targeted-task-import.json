@@ -1,0 +1,19 @@
+{
+  "format": "studytracker.tasks.v1",
+  "batch_id": "example-sheet-2026-12-01",
+  "tasks": [
+    {
+      "external_id": "example-sheet-2026-12-01",
+      "subject_id": "mathe",
+      "title": "Exercise sheet 1",
+      "planned_minutes": null
+    },
+    {
+      "external_id": "example-sheet-2026-12-01:A",
+      "subject_id": "mathe",
+      "parent_external_id": "example-sheet-2026-12-01",
+      "title": "Solve part A",
+      "planned_minutes": null
+    }
+  ]
+}

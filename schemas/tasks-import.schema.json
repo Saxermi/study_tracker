@@ -32,7 +32,6 @@
       "type": "object",
       "required": [
         "external_id",
-        "subject",
         "title"
       ],
       "additionalProperties": false,
@@ -130,7 +129,37 @@
               "type": "null"
             }
           ]
+        },
+        "subject_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Exact ID of an existing subject. Never invent it."
+        },
+        "parent_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Existing parent task ID in this same user profile. Only for directly attaching a new child to an existing parent."
         }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "subject"
+          ]
+        },
+        {
+          "required": [
+            "subject_id"
+          ]
+        }
+      ],
+      "not": {
+        "required": [
+          "parent_id",
+          "parent_external_id"
+        ]
       }
     }
   }
