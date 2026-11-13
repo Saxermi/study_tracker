@@ -41,3 +41,18 @@ test('Today selection remains pinned after midnight until explicitly removed',()
  assert.equal(context.isTodayPinned({planned_for:'2026-11-14'}),false);
  assert.equal(context.isTodayPinned({planned_for:null}),false);
 });
+
+test('overlay wraps the app modalClose when available, but does not require it for a standalone prompt',()=>{
+ let called=0;
+ const context={
+  openTaskReview(){},renderReviewComparison(){},reviewPromptFor(){},
+  modalClose(){called++},
+  StudyI18n:{language:'en'},document:{querySelector(){return null},addEventListener(){}},
+  escapeHtml(text){return String(text)},reviewLang(){return {issues:['Concept','Approach']}},
+  reviewDraft:{},gptAssessmentFromDialog(){return {data:null,error:null}}
+ };
+ vm.runInNewContext(fs.readFileSync(require.resolve('../static/rich_feedback.js'),'utf8'),context);
+ context.modalClose();
+ assert.equal(called,1);
+ assert.match(context.reviewPromptFor({title:'Simplex'}),/copyable fenced JSON/);
+});

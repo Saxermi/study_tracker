@@ -19,7 +19,7 @@ document.addEventListener('change',e=>{if(e.target.id==='review-issue'&&reviewDr
 document.addEventListener('click',e=>{const chip=e.target.closest('[data-rich-field]');if(chip){const owner=chip.dataset.richOwner,key=chip.dataset.richField,code=chip.dataset.richCode;const state=owner==='gpt'?gptAssessmentFromDialog():{data:reviewDraft,error:null};if(state.error)return;const obj=state.data||{},old=obj[key]||[],next=old.includes(code)?old.filter(x=>x!==code):[...old,code];if(next.length>3)return;obj[key]=next;if(owner==='gpt'){document.querySelector('#review-json').value=JSON.stringify(obj,null,2)}else{reviewDraft.issues=next;reviewDraft.issue=next.includes(reviewDraft.issue)?reviewDraft.issue:next[0]||null;redrawMine()}renderReviewComparison();return}const b=e.target.closest('[data-rich-use]');if(b){const g=gptAssessmentFromDialog(),key=b.dataset.richUse;if(!g.error&&g.data?.[key]!=null){reviewDraft[key]=Array.isArray(g.data[key])?[...g.data[key]]:g.data[key];if(key==='issues'){reviewDraft.issue=reviewDraft.issues?.[0]||null;redrawMine()}if(key==='strength'){const el=document.querySelector('#rich-strength');if(el)el.value=reviewDraft.strength||''}if(key==='weakness'){const el=document.querySelector('#rich-weakness');if(el)el.value=reviewDraft.weakness||''}renderReviewComparison()}}});
 /* Reuse the existing import assistant DOM (and its bound events) inside a modal. */
 let importHome=null,importNext=null,importPanel=null;
-const closeBeforeImport=modalClose;
+const closeBeforeImport=typeof modalClose==='function'?modalClose:null;
 function restoreImportPanel(){
  if(!importPanel||!importHome)return;
  importPanel.classList.remove('agent-in-modal');
@@ -27,7 +27,7 @@ function restoreImportPanel(){
  else importHome.appendChild(importPanel);
  importHome=null;importNext=null;importPanel=null;
 }
-modalClose=function(){restoreImportPanel();closeBeforeImport()};
+if(closeBeforeImport)modalClose=function(){restoreImportPanel();closeBeforeImport()};
 // The main app bound its close button directly before this extension loaded.
 // Restore the reused panel in capture phase before that original click handler clears modal content.
 document.querySelector('#modal-close')?.addEventListener('click',restoreImportPanel,true);
