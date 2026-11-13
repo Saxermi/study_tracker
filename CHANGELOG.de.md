@@ -58,3 +58,11 @@
 - Der Dialog zeigt ein klares JSON-Beispiel statt eines irreführenden Platzhalters. Einzelne Werte werden nur bewusst übernommen.
 - Speichern verarbeitet eingefügtes JSON direkt; neue Prüfungen gegen ungültige Daten.
 - Kleine Änderungskennung statt vollständiger Profilabfrage alle fünf Sekunden; indexierte Lookups und verzögertes Rendern unsichtbarer Ansichten. Performance-Dokumentation ergänzt.
+
+
+## Kopierbare KI-Ausgaben
+
+Gib im Chat einen **kopierbaren JSON-Codeblock** (```json ... ```) ohne weiteren Text zurück. Importdateien enthalten ausschließlich den JSON-Inhalt **ohne** Codezäune.
+
+
+**New:** Multi-issue feedback, optional concise strength and weakness sentences from user and GPT, skill gap, next action and GPT assistance types. Today tasks stay pinned after midnight. Kanban has an import shortcut. Copyable JSON output is requested in AI prompts.

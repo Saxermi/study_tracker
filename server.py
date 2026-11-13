@@ -42,7 +42,18 @@ VALID_STATES = {"todo", "doing", "done"}
 PRIORITIES = {"low", "normal", "high"}
 REVIEW_OUTCOMES = {"correct", "partial", "incorrect"}
 REVIEW_ISSUES = {"concept", "approach", "calculation", "implementation", "instructions", "careless", "time", "verification"}
-REVIEW_KEYS = ("difficulty", "outcome", "issue", "help_total", "help_chatgpt")
+REVIEW_HELP_TYPES = {"verification", "hint", "guiding_questions", "concept_explanation", "approach_selection", "step_by_step", "debugging", "calculation", "code_generation", "full_solution", "error_identification"}
+REVIEW_KEYS = ("difficulty", "outcome", "issue", "help_total", "help_chatgpt", "issues", "strength", "weakness", "skill_gap", "next_action", "chatgpt_interventions")
+REVIEW_TEXT_LIMITS = {"strength": 200, "weakness": 200, "skill_gap": 100, "next_action": 160}
+
+
+def review_multi(value, allowed, label):
+    if value in (None, ""):
+        return None
+    if not isinstance(value, list) or len(value) > 3 or any(not isinstance(x, str) or x not in allowed for x in value) or len(set(value)) != len(value):
+        err(f"Ungültige Liste: {label} (maximal drei unterschiedliche Einträge).")
+    return value or None
+
 
 
 def validate_exercise_review(payload):
@@ -69,6 +80,17 @@ def validate_exercise_review(payload):
             err("Ungültige Exercise-Bewertung: " + k)
         else:
             result[k] = value
+    result["issues"] = review_multi(payload.get("issues"), REVIEW_ISSUES, "issues")
+    if result["issue"] and result["issues"] is None:
+        result["issues"] = [result["issue"]]
+    if result["issue"] and result["issues"] and result["issue"] not in result["issues"]:
+        err("Das Hauptproblem muss zu den ausgewählten Problemen gehören.")
+    if result["issues"] and not result["issue"]:
+        result["issue"] = result["issues"][0]
+    for key, limit in REVIEW_TEXT_LIMITS.items():
+        value = payload.get(key)
+        result[key] = None if value in (None, "") else txt(value, key, limit) or None
+    result["chatgpt_interventions"] = review_multi(payload.get("chatgpt_interventions"), REVIEW_HELP_TYPES, "chatgpt_interventions")
     if result["help_total"] is not None and result["help_chatgpt"] is not None and result["help_chatgpt"] > result["help_total"]:
         err("ChatGPT-Hilfe kann nicht höher als gesamte Hilfe sein.")
     return result if any(value is not None for value in result.values()) else None
@@ -950,7 +972,7 @@ def export_csv(state, kind):
                              f'{sr.get("break_seconds", 0)/60:.2f}'.replace(".", ","),
                              protect(" | ".join(b["started_at"]+" bis "+b["ended_at"] for b in sr.get("breaks", []))), sr["source"], protect(sr["notes"]), protect(tag_names.get(sr["category_tag_id"] if "category_tag_id" in sr else (sr.get("tags") or [None])[0], "Ohne Kategorie"))])
     elif kind == "tasks":
-        writer.writerow(["ID", "Fach", "Semester", "Titel", "Hauptaufgabe ID", "Status", "Priorität", "Fällig", "Geplant für", "Geschätzt min", "Ist min", "Abweichung min", "Abweichung %", "Tags", "Extern-ID", "Ist gesamt inkl Unteraufgaben min", "Schätzung für Auswertung min", "Abweichung für Auswertung min", "Schwierigkeit (1-5)", "Lösungserfolg", "Hauptproblem", "Gesamthilfe (0-5)", "ChatGPT-Hilfe (0-5)", "GPT Schwierigkeit (1-5)", "GPT Lösungserfolg", "GPT Hauptproblem", "GPT Gesamthilfe (0-5)", "GPT ChatGPT-Hilfe (0-5)"])
+        writer.writerow(["ID", "Fach", "Semester", "Titel", "Hauptaufgabe ID", "Status", "Priorität", "Fällig", "Geplant für", "Geschätzt min", "Ist min", "Abweichung min", "Abweichung %", "Tags", "Extern-ID", "Ist gesamt inkl Unteraufgaben min", "Schätzung für Auswertung min", "Abweichung für Auswertung min", "Schwierigkeit (1-5)", "Lösungserfolg", "Hauptproblem", "Gesamthilfe (0-5)", "ChatGPT-Hilfe (0-5)", "Eigene Probleme", "Eigene Stärke", "Eigene Schwäche", "Eigene Kompetenzlücke", "Eigene nächste Aktion", "Eigene GPT-Hilfearten", "GPT Schwierigkeit (1-5)", "GPT Lösungserfolg", "GPT Hauptproblem", "GPT Gesamthilfe (0-5)", "GPT ChatGPT-Hilfe (0-5)", "GPT Probleme", "GPT Stärke", "GPT Schwäche", "GPT Kompetenzlücke", "GPT nächste Aktion", "GPT Hilfearten"])
         used = {}
         for sr in state["sessions"]:
             if sr.get("task_id"):
@@ -969,8 +991,8 @@ def export_csv(state, kind):
                              f"{full_actual:.2f}".replace(".", ","),
                              "" if full_planned is None else full_planned,
                              "" if full_planned is None else f"{full_actual-full_planned:.2f}".replace(".", ","),
-                             *[(t.get("exercise_review") or {}).get(k) if (t.get("exercise_review") or {}).get(k) is not None else "" for k in REVIEW_KEYS],
-                             *[(t.get("exercise_review_gpt") or {}).get(k) if (t.get("exercise_review_gpt") or {}).get(k) is not None else "" for k in REVIEW_KEYS]])
+                             *[(protect(" | ".join((t.get("exercise_review") or {}).get(k))) if isinstance((t.get("exercise_review") or {}).get(k), list) else protect((t.get("exercise_review") or {}).get(k)) if isinstance((t.get("exercise_review") or {}).get(k), str) else (t.get("exercise_review") or {}).get(k)) if (t.get("exercise_review") or {}).get(k) is not None else "" for k in REVIEW_KEYS],
+                             *[(protect(" | ".join((t.get("exercise_review_gpt") or {}).get(k))) if isinstance((t.get("exercise_review_gpt") or {}).get(k), list) else protect((t.get("exercise_review_gpt") or {}).get(k)) if isinstance((t.get("exercise_review_gpt") or {}).get(k), str) else (t.get("exercise_review_gpt") or {}).get(k)) if (t.get("exercise_review_gpt") or {}).get(k) is not None else "" for k in REVIEW_KEYS]])
     else:
         err("Nur sessions und tasks als CSV verfügbar.")
     return ("\ufeff" + stream.getvalue()).encode("utf-8")
@@ -1087,7 +1109,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.raw_response(200, body, mime, {"Content-Disposition": f'attachment; filename="{name}"'})
             if route.path in ("/", "/index.html"):
                 path, mime = STATIC / "index.html", "text/html; charset=utf-8"
-            elif route.path in ("/app.js", "/app.css", "/features.css", "/i18n.js", "/time_analysis.js", "/exercise_review_import.js", "/import_wizard.js", "/favicon.svg"):
+            elif route.path in ("/app.js", "/app.css", "/features.css", "/i18n.js", "/time_analysis.js", "/exercise_review_import.js", "/import_wizard.js", "/rich_feedback.js", "/feedback_insights.js", "/favicon.svg"):
                 path = STATIC / route.path.lstrip("/")
                 mime = {".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml"}[path.suffix]
             else:

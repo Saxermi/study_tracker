@@ -5,8 +5,10 @@
   if (typeof module === 'object' && module.exports) module.exports = helpers;
   root.StudyExerciseReview = helpers;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
-  const FIELDS = ['difficulty', 'outcome', 'issue', 'help_total', 'help_chatgpt'];
+  const FIELDS = ['difficulty', 'outcome', 'issue', 'help_total', 'help_chatgpt', 'issues', 'strength', 'weakness', 'skill_gap', 'next_action', 'chatgpt_interventions'];
   const ISSUES = ['concept', 'approach', 'calculation', 'implementation', 'instructions', 'careless', 'time', 'verification'];
+  const HELP_TYPES = ['verification','hint','guiding_questions','concept_explanation','approach_selection','step_by_step','debugging','calculation','code_generation','full_solution','error_identification'];
+  const TEXT_LIMITS = {strength:200,weakness:200,skill_gap:100,next_action:160};
 
   /** Merge AI suggestions into the user's assessment. Unknown/null suggestions
    *  never erase an existing value. Explicit human changes always win.
@@ -31,9 +33,16 @@
         if (!['correct', 'partial', 'incorrect'].includes(v)) throw new Error('Invalid outcome');
       } else if (key === 'issue') {
         if (!ISSUES.includes(v)) throw new Error('Invalid issue');
+      } else if (key === 'issues' || key === 'chatgpt_interventions') {
+        const allowed = key === 'issues' ? ISSUES : HELP_TYPES;
+        if (!Array.isArray(v) || v.length > 3 || new Set(v).size !== v.length || v.some(x=>!allowed.includes(x))) throw new Error('Invalid '+key);
+      } else if (Object.prototype.hasOwnProperty.call(TEXT_LIMITS,key)) {
+        if (typeof v !== 'string' || v.length > TEXT_LIMITS[key]) throw new Error('Invalid '+key);
       }
       if (!protectedFields.has(key)) updated[key] = v;
     }
+    if (updated.issues && updated.issues.length && !updated.issue) updated.issue = updated.issues[0];
+    if (updated.issue && updated.issues && updated.issues.length && !updated.issues.includes(updated.issue)) throw new Error('Primary issue must be in issues');
     if (updated.help_total != null && updated.help_chatgpt != null && updated.help_chatgpt > updated.help_total)
       throw new Error('ChatGPT help exceeds total help');
     return updated;
@@ -47,5 +56,5 @@
     const validated=applySuggestion(content,{},[]);
     return Object.keys(validated).length?validated:null;
   }
-  return {applySuggestion,parseFeedback};
+  return {applySuggestion,parseFeedback,ISSUES,HELP_TYPES,TEXT_LIMITS};
 });

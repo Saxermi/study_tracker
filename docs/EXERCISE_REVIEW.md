@@ -24,3 +24,10 @@ All five fields may be left blank, independently: `difficulty` (1–5), `outcome
 ```
 
 Omit a source to preserve it; explicitly send `null` to clear it. Old clients may still send a flat `{"difficulty":2}` payload; it updates **only** the self-rating. Older profiles lacking `exercise_review_gpt` load normally. Both sources are exported in backups and separate CSV columns. Chat transcripts are not stored.
+
+
+## Copyable AI output
+
+Return **one copyable fenced JSON code block** (```json ... ```) with no surrounding prose. When saving an import `.json` file, omit the fences and save **only** the JSON content.
+
+Additional optional feedback: `issues` (up to three issue codes); `strength` and `weakness` (one sentence each, max 200 characters); `skill_gap` (max 100); `next_action` (max 160); `chatgpt_interventions` (up to three of `verification`, `hint`, `guiding_questions`, `concept_explanation`, `approach_selection`, `step_by_step`, `debugging`, `calculation`, `code_generation`, `full_solution`, `error_identification`). Existing `issue` remains the primary issue. Sources remain separate and optional. No transcripts or attempt histories.

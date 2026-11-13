@@ -14,3 +14,8 @@ Beispiel: `{"difficulty": 4, "outcome": "partial", "issue": "approach", "help_to
 Du kannst das Ergebnis direkt in das JSON-Feld im Bewertungsdialog einfügen, auf **ChatGPT-Antwort übernehmen** klicken, die Werte prüfen und sie dann speichern. Keine Angaben sind verpflichtend. Es gibt aktuell **nur eine Bewertung pro Aufgabe** und keinen Prüfungs- oder Wiederholungsmodus.
 
 **StudyTracker 4.3:** Deine JSON-Antwort wird getrennt als GPT-Feedback gespeichert, nicht als eigene Bewertung. Ohne unabhängige Belege keine Übernahme der Selbstbewertung; unbelegte Felder mit `null` füllen.
+
+
+**Kopierbares Ausgabeformat**: Antworte ausschließlich mit einem kopierbaren `json`-Codeblock (```json … ```), ohne Text davor oder danach. Speichere als `.json` nur dessen Inhalt ohne Codezäune.
+
+Optional additional assessment fields: `issues` (up to three distinct codes from `concept`, `approach`, `calculation`, `implementation`, `instructions`, `careless`, `time`, `verification`), `strength` and `weakness` (one specific evidence-based sentence, max 200 characters each), `skill_gap` (max 100), `next_action` (max 160), `chatgpt_interventions` (up to three of `verification`, `hint`, `guiding_questions`, `concept_explanation`, `approach_selection`, `step_by_step`, `debugging`, `calculation`, `code_generation`, `full_solution`, `error_identification`). Never invent observations; unsupported values may be null. `issue` remains the primary issue and must be included in `issues` when both are present.
