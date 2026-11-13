@@ -205,3 +205,11 @@ Die Anleitungstypen (Deutsch und Englisch als separate Markdown-Dateien) sind:
 - [Eigene Notizen](prompts/import/notes.de.md)
 
 Die generierten Aufgaben verwenden `subject_id` (exakte ID, kein Ratespiel). Für neue Hauptaufgaben und ihre Teilaufgaben verwende separate Aufgabenobjekte mit `parent_external_id`. Für Teilaufgaben einer **bestehenden ausgewählten** Hauptaufgabe nutze `parent_id`. Beide Felder dürfen nicht gemeinsam gesetzt werden. Der Server prüft, ob Fach und Hauptaufgabe im angemeldeten Profil existieren und zusammenpassen. Name-basierte ältere JSON-Importe bleiben kompatibel.
+
+
+## Kopierbare KI-Ausgaben
+
+Gib im Chat einen **kopierbaren JSON-Codeblock** (```json ... ```) ohne weiteren Text zurück. Importdateien enthalten ausschließlich den JSON-Inhalt **ohne** Codezäune.
+
+
+**New:** Multi-issue feedback, optional concise strength and weakness sentences from user and GPT, skill gap, next action and GPT assistance types. Today tasks stay pinned after midnight. Kanban has an import shortcut. Copyable JSON output is requested in AI prompts.

@@ -223,3 +223,11 @@ Available bilingual Markdown playbooks:
 - [Personal notes](prompts/import/notes.md)
 
 Generated tasks use `subject_id` (a verified ID, not a guessed subject name). For a newly created parent with subtasks, emit separate task objects linked through `parent_external_id`. For a **selected existing parent task**, attach direct children with `parent_id`. Do not use both keys together. The server checks that both IDs exist in the current user's profile and belong to the same subject. Older name-based imports continue to work.
+
+
+## Copyable AI output
+
+Return **one copyable fenced JSON code block** (```json ... ```) with no surrounding prose. When saving an import `.json` file, omit the fences and save **only** the JSON content.
+
+
+**New:** Multi-issue feedback, optional concise strength and weakness sentences from user and GPT, skill gap, next action and GPT assistance types. Today tasks stay pinned after midnight. Kanban has an import shortcut. Copyable JSON output is requested in AI prompts.

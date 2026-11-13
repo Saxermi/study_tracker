@@ -118,3 +118,8 @@ Exercise ratings use two independent optional fields: `exercise_review` for the 
 ## Version 4.4: verified IDs from the Import assistant
 
 For ID-targeted imports, the user provides `subject_id` from **Settings → Import assistant**. Reuse it exactly on **every** task; `subject` can be omitted. `parent_id` refers only to a selected existing root task. When creating a new parent, give it an `external_id` and link direct child objects using `parent_external_id` (no nested arrays). Never provide both parent keys, create deeper levels, or invent IDs. Agents cannot read private user profiles. Seven bilingual source playbooks are in [`prompts/import/`](prompts/import/): email, ChatGPT breakdown, exercise sheet/PDF, lecture notes, course platform announcement, syllabus and personal notes. JSON remains `studytracker.tasks.v1`; legacy name-based imports are still supported.
+
+
+## Copyable AI output
+
+Return **one copyable fenced JSON code block** (```json ... ```) with no surrounding prose. When saving an import `.json` file, omit the fences and save **only** the JSON content.

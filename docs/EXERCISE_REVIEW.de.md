@@ -24,3 +24,10 @@ Jedes Feld kann leer bleiben: `difficulty` (1–5), `outcome` (`correct|partial|
 ```
 
 Ausgelassene Quellen bleiben erhalten, `null` löscht die Quelle. Alte flache Anfragen bearbeiten weiterhin **nur deine eigene Bewertung**. Bestehende Profile ohne `exercise_review_gpt` bleiben gültig. Beide Quellen erscheinen getrennt in JSON-Backups und CSV. Chatverläufe werden nicht gespeichert.
+
+
+## Kopierbare KI-Ausgaben
+
+Gib im Chat einen **kopierbaren JSON-Codeblock** (```json ... ```) ohne weiteren Text zurück. Importdateien enthalten ausschließlich den JSON-Inhalt **ohne** Codezäune.
+
+Additional optional feedback: `issues` (up to three issue codes); `strength` and `weakness` (one sentence each, max 200 characters); `skill_gap` (max 100); `next_action` (max 160); `chatgpt_interventions` (up to three of `verification`, `hint`, `guiding_questions`, `concept_explanation`, `approach_selection`, `step_by_step`, `debugging`, `calculation`, `code_generation`, `full_solution`, `error_identification`). Existing `issue` remains the primary issue. Sources remain separate and optional. No transcripts or attempt histories.

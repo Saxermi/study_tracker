@@ -53,3 +53,8 @@ If the source is a lecture, add `"tags": ["Vorlesung"]`; for a video add `"tags"
 4. Import its `studytracker.tasks.v1` JSON in Settings or via the private inbox.
 
 `subject_id` is the exact ID of an existing subject in the signed-in profile. Optional `parent_id` is the ID of an **existing** root task in that subject. Unknown or mismatched IDs reject the entire import. New parents with children instead use `parent_external_id`. See [`examples/targeted-task-import.json`](../examples/targeted-task-import.json) and the source-specific Markdown files in [`prompts/import/`](../prompts/import/).
+
+
+## Copyable AI output
+
+Return **one copyable fenced JSON code block** (```json ... ```) with no surrounding prose. When saving an import `.json` file, omit the fences and save **only** the JSON content.

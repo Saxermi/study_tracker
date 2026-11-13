@@ -58,3 +58,11 @@
 - The dialog shows an explicit JSON example, not a misleading placeholder. Copying individual GPT values into the personal assessment is always manual.
 - Added single-response save semantics, input validation and regression tests.
 - Replaced full-state idle polling with a small revision token; indexed repeated task/session lookups and lazy-rendered hidden views. Added performance documentation.
+
+
+## Copyable AI output
+
+Return **one copyable fenced JSON code block** (```json ... ```) with no surrounding prose. When saving an import `.json` file, omit the fences and save **only** the JSON content.
+
+
+**New:** Multi-issue feedback, optional concise strength and weakness sentences from user and GPT, skill gap, next action and GPT assistance types. Today tasks stay pinned after midnight. Kanban has an import shortcut. Copyable JSON output is requested in AI prompts.

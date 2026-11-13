@@ -53,3 +53,8 @@ Passende Aufgaben können `"tags": ["Vorlesung"]`, `"tags": ["Videos"]` oder `"t
 4. Das vom Agenten ausgegebene `studytracker.tasks.v1`-JSON importieren.
 
 `subject_id` ist die exakte ID des Fachs im aktuellen Profil. Optionaler `parent_id` ist die ID einer **bestehenden** Hauptaufgabe im selben Fach. Ein unpassender oder fremder Wert führt zum Abbruch der ganzen Importdatei. Bei neuen Hauptaufgaben/Teilaufgaben wird stattdessen `parent_external_id` verwendet. Beispiel: [`examples/targeted-task-import.json`](../examples/targeted-task-import.json). Die detaillierten Quellentemplates liegen unter [`prompts/import/`](../prompts/import/).
+
+
+## Kopierbare KI-Ausgaben
+
+Gib im Chat einen **kopierbaren JSON-Codeblock** (```json ... ```) ohne weiteren Text zurück. Importdateien enthalten ausschließlich den JSON-Inhalt **ohne** Codezäune.
