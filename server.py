@@ -1109,7 +1109,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.raw_response(200, body, mime, {"Content-Disposition": f'attachment; filename="{name}"'})
             if route.path in ("/", "/index.html"):
                 path, mime = STATIC / "index.html", "text/html; charset=utf-8"
-            elif route.path in ("/app.js", "/app.css", "/features.css", "/i18n.js", "/time_analysis.js", "/exercise_review_import.js", "/import_wizard.js", "/favicon.svg"):
+            elif route.path in ("/app.js", "/app.css", "/features.css", "/i18n.js", "/time_analysis.js", "/exercise_review_import.js", "/import_wizard.js", "/rich_feedback.js", "/favicon.svg"):
                 path = STATIC / route.path.lstrip("/")
                 mime = {".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml"}[path.suffix]
             else:

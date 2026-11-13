@@ -161,3 +161,12 @@
 
 /* v4.4: source-specific, ID-locked task import assistant */
 .agent-import-panel{grid-column:1/-1}.agent-import-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:18px 0 12px}.agent-import-fields label{display:flex;flex-direction:column;gap:7px;color:var(--muted);font-size:12px;font-weight:750}.agent-import-fields select{min-width:0;width:100%;padding:11px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink)}.agent-import-fields select:disabled{opacity:.6}.agent-preview{border:1px solid var(--line);border-radius:12px;padding:13px;margin:16px 0}.agent-preview summary{font-size:13px;font-weight:800;color:var(--ink);cursor:pointer}.agent-preview textarea{box-sizing:border-box;width:100%;margin-top:12px;resize:vertical;min-height:220px;max-height:520px;font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;border:1px solid var(--line);border-radius:10px;padding:13px;background:var(--bg);color:var(--ink)}.agent-import-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.agent-import-actions .btn:disabled{opacity:.4;cursor:not-allowed}#agent-selected-context{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere;color:var(--primary)}[data-theme=dark] .agent-import-fields select,[data-theme=dark] .agent-preview textarea{background:#181e2e;color:var(--ink);border-color:var(--line)}@media(max-width:870px){.agent-import-fields{grid-template-columns:1fr}}
+
+/* StudyTracker richer feedback and import shortcut */
+.board-heading-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.review-additions{margin:14px 0;display:grid;gap:8px}
+.review-additions textarea{width:100%;min-height:64px;resize:vertical}
+.review-multi{display:flex;gap:7px;flex-wrap:wrap}
+.review-multi-chip{padding:8px 10px;border:1px solid var(--border,#656d86);border-radius:10px;background:transparent;color:inherit;cursor:pointer;font:inherit;font-size:.82rem}
+.review-multi-chip.selected{border-color:#7366f5;background:rgba(115,102,245,.19);box-shadow:inset 0 0 0 1px #7366f5}
+@media(max-width:650px){.board-heading-actions{width:100%}}
