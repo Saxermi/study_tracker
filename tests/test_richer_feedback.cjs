@@ -13,3 +13,31 @@ test('unknown GPT fields preserve existing manual ratings',()=>assert.equal(help
 test('every source provides copyable instructions in both languages',()=>{
  for(const lang of ['de','en'])for(const source of wizard.sourceKeys){const text=wizard.build({lang,source,subject:{id:'subject-1',name:'NumCSE'},parent:null,semester:null});assert.match(text,lang==='de'?/kopierbaren/:/copyable/)}
 });
+
+
+const vm=require('node:vm'),fs=require('node:fs');
+test('new review overlay loads in a minimal browser context and requests copyable JSON',()=>{
+ const context={
+  openTaskReview(){},renderReviewComparison(){},reviewPromptFor(){},
+  StudyI18n:{language:'en'},document:{querySelector(){return null},addEventListener(){}},
+  escapeHtml(text){return String(text)},reviewLang(){return {issues:['Concept','Approach']}},
+  reviewDraft:{},gptAssessmentFromDialog(){return {data:null,error:null}}
+ };
+ vm.runInNewContext(fs.readFileSync(require.resolve('../static/rich_feedback.js'),'utf8'),context);
+ const value=context.reviewPromptFor({title:'Simplex',description:'Find a pivot'});
+ assert.match(value,/copyable fenced JSON/);
+ assert.match(value,/issues/);
+ assert.match(value,/skill_gap/);
+ assert.match(value,/chatgpt_interventions/);
+});
+test('Today selection remains pinned after midnight until explicitly removed',()=>{
+ const app=fs.readFileSync(require.resolve('../static/app.js'),'utf8');
+ const source=app.match(/function isTodayPinned\(t\)\{[^}]*\}/)?.[0];
+ assert.ok(source,'Today helper exists');
+ const context={dateKey(){return '2026-11-13'},Date};
+ vm.runInNewContext(source,context);
+ assert.equal(context.isTodayPinned({planned_for:'2026-11-12'}),true);
+ assert.equal(context.isTodayPinned({planned_for:'2026-11-13'}),true);
+ assert.equal(context.isTodayPinned({planned_for:'2026-11-14'}),false);
+ assert.equal(context.isTodayPinned({planned_for:null}),false);
+});

@@ -27,4 +27,6 @@ jobs:
           node --check static/app.js
           node --check static/i18n.js
           node --check static/exercise_review_import.js
+          node --check static/rich_feedback.js
+          node --check static/import_wizard.js
           TZ=Europe/Zurich node --test tests/*.cjs
