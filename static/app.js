@@ -21,7 +21,7 @@ const icon = name => svg(ICONS[name] || ICONS.check);
 const hydrateIcons = () => $$('[data-icon]').forEach(el=>{el.innerHTML=icon(el.dataset.icon)});
 let state = null, user = null, currentPage = 'overview', editId = null, modalKind = null, modalTags = new Set(), modalColor = COLORS[0], taskDefaultStatus = 'todo';
 let showTimerNow = Date.now();
-let lastTimingRefresh=0, renderIndex=null;
+let lastTimingRefresh=0, lastTodayVisibilityRefresh=0, renderIndex=null;
 let reviewDraft = null, reviewPrompt = '', reviewAppliedJson = '';
 let reviewManualFields = new Set();
 let reviewGptDraft=null, reviewGptCleared=false, profileRevision=null;
@@ -73,7 +73,7 @@ function todaySessions(includeActive=true){
    return {...s,duration_seconds,break_seconds};
  }).filter(s=>s.duration_seconds>0||s.break_seconds>0);
 }
-function periodSessions(period, live=true){return period==='today'?todaySessions(live):recentSessions(period)}
+function periodSessions(period, live=true){return period==='today'?todaySessions(live):period==='week'?sessionForWeek():recentSessions(period)}
 function totalSeconds(sessions,field='duration_seconds'){return sessions.reduce((n,s)=>n+(Number(s[field])||0),0)}
 function sessionCategory(s){return Object.prototype.hasOwnProperty.call(s,'category_tag_id')?s.category_tag_id:((s.tags||[])[0]||null)}
 const isArchivedTask=t=>t.status==='done'&&!!t.completed_at&&Date.now()-new Date(t.completed_at).getTime()>=48*3600000;
@@ -81,7 +81,7 @@ function niceTooltip(text){return escapeHtml(text)}
 function weekStart(){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-(d.getDay()+6)%7);return d}
 function sessionForWeek(){return state.sessions.filter(s=>new Date(s.started_at)>=weekStart())}
 function localTimestamp(){let d=new Date();return dateKey(d)+'T'+pad(d.getHours())+':'+pad(d.getMinutes())}
-function showPage(page){if(!['overview','today','board','insights','history','subjects','settings'].includes(page))page='overview';currentPage=page;$$('.page').forEach(p=>p.classList.toggle('visible',p.id==='page-'+page));$$('.nav-link').forEach(b=>b.classList.toggle('active',b.dataset.page===page));$('#crumb-current').textContent={overview:'Übersicht',today:'Heute',board:'Kanban-Board',insights:'Auswertungen',history:'Lernhistorie',subjects:'Fächer & Ziele',settings:'Einstellungen'}[page];$('#sidebar').classList.remove('open');if(location.hash.slice(1)!==page)history.replaceState(null,'','#'+page);if(page==='insights'){renderInsights();renderTiming()}if(page==='board')renderBoard();if(page==='history')renderHistory()}
+function showPage(page){if(!['overview','today','board','insights','history','subjects','settings'].includes(page))page='overview';currentPage=page;$$('.page').forEach(p=>p.classList.toggle('visible',p.id==='page-'+page));$$('.nav-link').forEach(b=>b.classList.toggle('active',b.dataset.page===page));$('#crumb-current').textContent={overview:'Übersicht',today:'Heute',board:'Kanban-Board',insights:'Auswertungen',history:'Lernhistorie',subjects:'Fächer & Ziele',settings:'Einstellungen'}[page];$('#sidebar').classList.remove('open');if(location.hash.slice(1)!==page)history.replaceState(null,'','#'+page);if(page==='insights'){renderInsights();renderTiming()}if(page==='board')renderBoard();if(page==='history')renderHistory();if(page==='today')renderToday()}
 function renderAll(){if(!state)return;renderIndex=buildRenderIndex();renderSide();renderSelects();renderTimer();renderOverview();renderToday();if(currentPage==='board')renderBoard();if(currentPage==='insights'){renderInsights();renderTiming()}if(currentPage==='history')renderHistory();renderSubjects();renderSettings();hydrateIcons()}
 function renderSide(){const open=state.tasks.filter(t=>t.status!=='done').length;$('#board-side-count').textContent=open;$('#today-side-count').textContent=state.tasks.filter(t=>t.status!=='done'&&isTodayPinned(t)).length;$('#sidebar-subjects').innerHTML=activeSubjects().map(s=>`<div class="sidebar-subject"><i class="subject-dot" style="background:${s.color}"></i>${escapeHtml(s.name)}</div>`).join('')||'<div class="sidebar-subject">Noch keine Fächer</div>';$('#user-name').textContent=user.display_name;$('#user-role').textContent=user.role==='admin'?'Administrator':'Benutzerkonto';$('#avatar').textContent=user.display_name.slice(0,1).toUpperCase()}
 function setSelect(id,options,all=false){const select=$(id),prev=select.value;select.innerHTML=(all?'<option value="all">Alle Fächer</option>':'')+options.map(s=>`<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`).join('');if([...select.options].some(o=>o.value===prev))select.value=prev}
@@ -92,7 +92,7 @@ function renderTimer(){const a=state.active_timer;const mode=a?.mode;$('#focus-h
  for(const id of ['start','break','break-end','pause','resume','stop','discard'])$('#timer-'+id).hidden = (id==='start'?!!a:id==='break'?!a||mode!=='focus':id==='break-end'?!a||mode!=='break':id==='pause'?!a||mode!=='focus':id==='resume'?!a||mode!=='paused':!a);
  updateClock()}
 function timerTime(mode){const t=state?.active_timer;if(!t)return 0;let seconds=Number(t[mode==='focus'?'focus_seconds':'break_seconds'])||0;if(t.mode===mode&&t.mode_since){seconds+=Math.max(0,Math.floor((Date.now()-new Date(t.mode_since).getTime())/1000))}return seconds}
-function updateClock(){if(!state)return;const focus=timerTime('focus'),br=timerTime('break');let n=state.active_timer?.mode==='break'?br:focus;$('#focus-clock').textContent=`${pad(Math.floor(n/3600))}:${pad(Math.floor(n/60)%60)}:${pad(n%60)}`;$('#focus-amount').textContent=fmt(focus);$('#break-amount').textContent=fmt(br);renderTodayTotals();if(currentPage==='insights'&&state.active_timer&&Date.now()-lastTimingRefresh>=60000){lastTimingRefresh=Date.now();renderTiming()}}
+function updateClock(){if(!state)return;const focus=timerTime('focus'),br=timerTime('break');let n=state.active_timer?.mode==='break'?br:focus;$('#focus-clock').textContent=`${pad(Math.floor(n/3600))}:${pad(Math.floor(n/60)%60)}:${pad(n%60)}`;$('#focus-amount').textContent=fmt(focus);$('#break-amount').textContent=fmt(br);renderTodayTotals();if(currentPage==='today'&&Date.now()-lastTodayVisibilityRefresh>=60000){lastTodayVisibilityRefresh=Date.now();renderToday()}if(currentPage==='insights'&&state.active_timer&&Date.now()-lastTimingRefresh>=60000){lastTimingRefresh=Date.now();renderTiming()}}
 async function timerAction(action,taskId=null){if(action==='discard'&&!confirm('Timer ohne Speichern verwerfen?'))return;let payload={};if(action==='start') {if(taskId){payload.task_id=taskId;showPage('overview')}else{payload={subject_id:$('#timer-subject').value,task_id:$('#timer-task').value||null,title:$('#timer-title').value}}payload.category_tag_id=$('#timer-category').value==='__none__'?null:($('#timer-category').value||(taskId?taskById(taskId)?.tags?.[0]:($('#timer-task').value?taskById($('#timer-task').value)?.tags?.[0]:null))||null);}const result=await mutate('/api/timer/'+action,'POST',payload);if(result){const messages={start:'Fokuszeit gestartet.',pause:'Timer unterbrochen.',resume:'Fokuszeit fortgesetzt.','break-start':'Pause gestartet.','break-end':'Pause beendet. Zurück zum Lernen!',stop:'Session gespeichert – inklusive deiner Pausen.',discard:'Timer verworfen.'};toast(messages[action]);if(action==='stop'||action==='discard')$('#timer-title').value=''}}
 function renderOverview(){const week=sessionForWeek();const focus=week.reduce((n,s)=>n+s.duration_seconds,0),br=week.reduce((n,s)=>n+(s.break_seconds||0),0),goal=(state.settings.weekly_goal_minutes||0)*60,progress=goal?Math.min(100,focus/goal*100):0;$('#goal-value').textContent=fmt(focus);$('#goal-target').textContent=goal?fmt(goal):'–';$('#goal-percent').textContent=goal?`${Math.round(progress)} % erreicht`:'Ohne Wochenziel';$('#goal-remain').textContent=goal?(focus<goal?`${fmt(goal-focus)} offen`:'Wochenziel erreicht!'):'Frei einteilbar';$('#goal-bar').style.width=(goal?progress:0)+'%';$('#days-week').textContent=`${new Set(week.map(s=>isoDate(s.started_at))).size} Tage`;const completed=state.tasks.filter(t=>t.status==='done'&&t.completed_at&&new Date(t.completed_at)>=weekStart()).length;$('#completed-week').textContent=`${completed} Aufgaben`;
  $('#kpi-week').textContent=fmt(focus);$('#kpi-today').textContent=fmt(totalSeconds(todaySessions()));$('#kpi-break').textContent=fmt(br);$('#kpi-tasks').textContent=state.tasks.filter(t=>t.status!=='done').length;
@@ -116,20 +116,38 @@ function renderTodayTotals(){if(!state)return;const sessions=todaySessions();con
  if($('#today-break-total'))$('#today-break-total').textContent=fmt(breaks)+' Pausen';
  if($('#today-subject-summary')){$('#today-subject-summary').innerHTML=state.subjects.map(s=>({name:s.name,color:s.color,time:totalSeconds(sessions.filter(x=>x.subject_id===s.id))})).filter(s=>s.time>0).sort((a,b)=>b.time-a.time).map(s=>`<span class="today-subject-pill"><i style="background:${s.color}"></i>${escapeHtml(s.name)} <strong>${fmt(s.time)}</strong></span>`).join('')||'<span class="muted">Noch keine Lernzeit heute.</span>'}}
 function isTodayPinned(t){return !!t?.planned_for && t.planned_for<=dateKey(new Date())}
+// Keep incomplete selected work across midnight, but only keep completions on Today for 24 hours.
+// The saved pin stays in the profile so reopening a task restores it to Today.
+function isRecentlyCompleted(t,now=Date.now()){
+ if(t.status!=='done'||!t.completed_at)return false;
+ const completed=new Date(t.completed_at).getTime(),elapsed=now-completed;
+ return Number.isFinite(completed)&&elapsed>=0&&elapsed<24*60*60*1000;
+}
+function todayTaskGroups(tasks,now=Date.now()){
+ const picked=tasks.filter(t=>isTodayPinned(t));
+ const inherited=tasks.filter(t=>t.parent_id&&isTodayPinned(taskById(t.parent_id)));
+ const selected=[...new Map([...picked,...inherited].map(t=>[t.id,t])).values()];
+ return {
+  pending:selected.filter(t=>t.status!=='done'),
+  recentDone:selected.filter(t=>isRecentlyCompleted(t,now)).sort((a,b)=>new Date(b.completed_at)-new Date(a.completed_at))
+ };
+}
 function todayButton(t){const active=isTodayPinned(t);return `<button type="button" class="today-chip ${active?'is-today':''}" data-task-today="${escapeHtml(t.id)}" aria-pressed="${active}">${icon('calendar')} ${active?'Für heute ✓':'Für heute'}</button>`}
 function renderToday(){
  renderTodayTotals();
- const today=dateKey(new Date()), picked=state.tasks.filter(t=>isTodayPinned(t));
- const inherited=state.tasks.filter(t=>t.parent_id&&isTodayPinned(taskById(t.parent_id)));
- const all=[...new Map([...picked,...inherited].map(t=>[t.id,t])).values()];
- const pending=all.filter(t=>t.status!=='done'),done=all.length-pending.length;
- // A selected parent represents its whole family in the time budget; never count a selected child twice.
- const forEstimate=all.filter(t=>!t.parent_id||!isTodayPinned(taskById(t.parent_id)));
- const minutes=forEstimate.filter(t=>t.status!=='done').reduce((a,t)=>a+(taskEstimate(t)||0),0);
- $('#today-progress-heading').textContent=`${all.length} Aufgaben für heute`;
- $('#today-progress-detail').textContent=`${done} erledigt · ${pending.length} offen`;
+ const {pending,recentDone}=todayTaskGroups(state.tasks);
+ const forEstimate=pending.filter(t=>!t.parent_id||!isTodayPinned(taskById(t.parent_id)));
+ const minutes=forEstimate.reduce((a,t)=>a+(taskEstimate(t)||0),0);
+ const en=StudyI18n.language==='en';
+ $('#today-progress-heading').textContent=en?`${pending.length} active tasks for today`:`${pending.length} offene Aufgaben für heute`;
+ $('#today-progress-detail').textContent=en?`${recentDone.length} completed in the last 24 hours · ${pending.length} open`:`${recentDone.length} in den letzten 24 Stunden erledigt · ${pending.length} offen`;
  $('#today-estimate').textContent=`${fmt(minutes*60)} geplant`;
- $('#today-task-list').innerHTML=all.length?all.map(t=>`<article class="today-task panel"><div class="today-task-icon" style="background:${subject(t.subject_id)?.color||COLORS[0]}">${escapeHtml((subject(t.subject_id)?.name||'F')[0])}</div><div class="today-task-body"><div class="today-task-subject">${escapeHtml(subject(t.subject_id)?.name||'Fach')}</div>${taskParentText(t)}<h3 class="${t.status==='done'?'struck':''}">${escapeHtml(t.title)}</h3><p><span>${taskEstimateText(t)}${taskEstimate(t)==null?'':' geschätzt'}</span> · <span>${fmt(t.parent_id?secondsByTask(t.id):taskSeconds(t))} erfasst</span></p>${reviewSummary(t)}</div><div class="today-task-actions">${todayButton(t)}<button class="btn outline" data-task-check="${escapeHtml(t.id)}">${t.status==='done'?'↶':'✓'} ${t.status==='done'?'Öffnen':'Erledigen'}</button><button class="btn outline" data-task-edit="${escapeHtml(t.id)}">Bearbeiten</button><button class="btn outline" data-task-review="${escapeHtml(t.id)}">Bewerten</button>${t.status!=='done'?`<button class="btn primary" data-task-start="${escapeHtml(t.id)}">${icon('play')} Start</button>`:''}</div></article>`).join(''):'<div class="panel today-empty">Noch keine Aufgaben für heute. Markiere sie im Kanban-Board mit „Für heute“.</div>';
+ const todayCard=(t,completed=false)=>`<article class="today-task panel ${completed?'is-recently-completed':''}"><div class="today-task-icon" style="background:${subject(t.subject_id)?.color||COLORS[0]}">${escapeHtml((subject(t.subject_id)?.name||'F')[0])}</div><div class="today-task-body"><div class="today-task-subject">${escapeHtml(subject(t.subject_id)?.name||'Fach')}</div>${taskParentText(t)}<h3 class="${t.status==='done'?'struck':''}">${escapeHtml(t.title)}</h3><p><span>${taskEstimateText(t)}${taskEstimate(t)==null?'':' geschätzt'}</span> · <span>${fmt(t.parent_id?secondsByTask(t.id):taskSeconds(t))} erfasst</span></p>${reviewSummary(t)}</div><div class="today-task-actions">${todayButton(t)}<button class="btn outline" data-task-check="${escapeHtml(t.id)}">${t.status==='done'?'↶':'✓'} ${t.status==='done'?'Öffnen':'Erledigen'}</button><button class="btn outline" data-task-edit="${escapeHtml(t.id)}">Bearbeiten</button><button class="btn outline" data-task-review="${escapeHtml(t.id)}">Bewerten</button>${t.status!=='done'?`<button class="btn primary" data-task-start="${escapeHtml(t.id)}">${icon('play')} Start</button>`:''}</div></article>`;
+ $('#today-task-list').innerHTML=pending.length?pending.map(t=>todayCard(t)).join(''):(en?'<div class="panel today-empty">No unfinished tasks selected. Choose a task on Kanban.</div>':'<div class="panel today-empty">Keine offenen Aufgaben ausgewählt. Markiere eine Aufgabe im Kanban-Board.</div>');
+ const completedSection=$('#today-completed-section');
+ completedSection.hidden=recentDone.length===0;
+ $('#today-completed-count').textContent=`(${recentDone.length})`;
+ $('#today-completed-list').innerHTML=recentDone.map(t=>todayCard(t,true)).join('');
 }
 function taskCard(t){
  const children=childrenOf(t.id),used=t.parent_id?secondsByTask(t.id):taskSeconds(t),estimate=taskEstimate(t),planned=estimate==null?null:estimate*60;

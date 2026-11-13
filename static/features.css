@@ -185,3 +185,14 @@
 .agent-import-panel.agent-in-modal{border:0;box-shadow:none;background:transparent;padding:0;margin:0}
 #agent-import-modal-slot{min-width:0}
 #agent-import-modal-slot .agent-import-panel .agent-preview textarea{max-height:350px}
+
+/* Today: unfinished work is prominent; last-24-hour completions are muted and collapsed. */
+.today-completed-section{margin-top:20px;border:1px solid var(--line);border-radius:14px;padding:14px 18px;background:var(--surface)}
+.today-completed-section>summary{cursor:pointer;color:var(--muted);font-size:13px;font-weight:750;line-height:1.7}
+.today-completed-section>summary:focus-visible{outline:2px solid var(--primary);outline-offset:4px}
+.today-completed-list{margin-top:14px}
+.today-task.is-recently-completed{opacity:.65;background:var(--bg);border-color:var(--line)}
+.today-task.is-recently-completed:hover,.today-task.is-recently-completed:focus-within{opacity:1}
+.goal-focus-note,.overview-focus-note{font-size:11px;color:var(--muted);line-height:1.5}
+.goal-focus-note{margin:10px 0 0}
+.overview-focus-note{margin:4px 0 0}

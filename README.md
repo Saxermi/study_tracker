@@ -74,7 +74,7 @@ STUDYTRACKER_DATA_DIR="$HOME/Nextcloud/private-study-data" ./start.sh
 
 ## Overview and Today
 
-The **Overview** is the home screen for quick decisions: how much focus time you have recorded today, the current timer, recent study sessions and charts. The **Today** page is a shortlist of your selected work, not a second Kanban board.
+The **Overview** is the home screen for quick decisions: how much focus time you have recorded today, the current timer, recent study sessions and charts. The weekly goal and the subject breakdown now default to the **same current-week period**; both count **focus time only**, while breaks are reported separately. The **Today** page is a shortlist of your selected work, not a second Kanban board.
 
 ![Today page showing selected work and a daily total](docs/screenshots/v4/02-Today.png)
 
@@ -87,7 +87,7 @@ The **Overview** is the home screen for quick decisions: how much focus time you
 3. Start the timer from that card or from Today.
 4. When midnight passes, the selection **stays** until you explicitly remove it. This is useful when working late; completion status and date-specific study-time totals are separate concepts.
 
-A task's **due date** is not the same as its **Today selection**. The amount *studied today* still resets at the local midnight, while a pinned task does not silently disappear.
+A task's **due date** is not the same as its **Today selection**. The amount *studied today* still resets at the local midnight, while **unfinished pinned tasks remain visible across midnight** until you explicitly remove the selection. **Completed tasks move into a muted, collapsed “Recently completed” section for the first 24 hours after completion**, then disappear from Today. They remain saved in Kanban/history; reopening an older pinned task makes it active in Today again. No saved tasks or pins are deleted by this filter.
 
 ## Kanban, tasks and independent subtasks
 

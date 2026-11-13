@@ -40,7 +40,7 @@ const TRANSLATIONS = {
  'Im Kanban-Board':'On your Kanban board','Abgeschlossene Aufgaben mit Zeit':'Completed tasks with tracked time',
  'DEIN RHYTHMUS':'YOUR RHYTHM','Fokus im Verlauf':'Focus over time','Fokuszeit':'Focus time',
  'WOHIN GEHT DEINE ZEIT?':'WHERE DOES YOUR TIME GO?','Lernzeit pro Fach':'Time by subject',
- 'Gesamt':'Total','DEIN NÄCHSTER SCHRITT':'YOUR NEXT STEP','Aufgaben im Fokus':'Tasks in focus',
+ 'Gesamt':'Total','Fokuszeit pro Fach':'Focus time by subject','Nur Fokuszeit · Pausen ausgeschlossen':'Focus time only · breaks excluded','Kürzlich erledigt (letzte 24 Stunden)':'Recently completed (last 24 hours)','DEIN NÄCHSTER SCHRITT':'YOUR NEXT STEP','Aufgaben im Fokus':'Tasks in focus',
  'Zum Board →':'Open board →','Zu den Einträgen →':'View entries →',
  'DEINE LETZTEN SESSIONS':'YOUR RECENT SESSIONS','Zuletzt gelernt':'Recently studied',
  'Noch keine Fächer':'No subjects yet','Noch keine Lernzeit.':'No tracked study time yet.',
