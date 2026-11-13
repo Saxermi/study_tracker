@@ -180,3 +180,8 @@
 .feedback-pattern-track{background:var(--line,rgba(120,130,155,.18));height:9px;border-radius:10px;overflow:hidden}
 .feedback-pattern-track>div{background:#7366e8;height:100%;border-radius:10px}
 @media(max-width:650px){.feedback-pattern-grid{grid-template-columns:1fr}}
+
+/* Compact reusable agent-import modal */
+.agent-import-panel.agent-in-modal{border:0;box-shadow:none;background:transparent;padding:0;margin:0}
+#agent-import-modal-slot{min-width:0}
+#agent-import-modal-slot .agent-import-panel .agent-preview textarea{max-height:350px}

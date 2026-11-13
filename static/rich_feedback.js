@@ -17,5 +17,31 @@ renderReviewComparison=function(){originalCompare();const where=document.querySe
 document.addEventListener('input',e=>{if(e.target.id==='rich-strength'){reviewDraft.strength=e.target.value||null;renderReviewComparison()}if(e.target.id==='rich-weakness'){reviewDraft.weakness=e.target.value||null;renderReviewComparison()}});
 document.addEventListener('change',e=>{if(e.target.id==='review-issue'&&reviewDraft){const item=reviewDraft.issue,old=reviewDraft.issues||[];if(item&&!old.includes(item)){reviewDraft.issues=[item,...old].slice(0,3);redrawMine()}else if(!item&&old.length)reviewDraft.issue=old[0];renderReviewComparison()}});
 document.addEventListener('click',e=>{const chip=e.target.closest('[data-rich-field]');if(chip){const owner=chip.dataset.richOwner,key=chip.dataset.richField,code=chip.dataset.richCode;const state=owner==='gpt'?gptAssessmentFromDialog():{data:reviewDraft,error:null};if(state.error)return;const obj=state.data||{},old=obj[key]||[],next=old.includes(code)?old.filter(x=>x!==code):[...old,code];if(next.length>3)return;obj[key]=next;if(owner==='gpt'){document.querySelector('#review-json').value=JSON.stringify(obj,null,2)}else{reviewDraft.issues=next;reviewDraft.issue=next.includes(reviewDraft.issue)?reviewDraft.issue:next[0]||null;redrawMine()}renderReviewComparison();return}const b=e.target.closest('[data-rich-use]');if(b){const g=gptAssessmentFromDialog(),key=b.dataset.richUse;if(!g.error&&g.data?.[key]!=null){reviewDraft[key]=Array.isArray(g.data[key])?[...g.data[key]]:g.data[key];if(key==='issues'){reviewDraft.issue=reviewDraft.issues?.[0]||null;redrawMine()}if(key==='strength'){const el=document.querySelector('#rich-strength');if(el)el.value=reviewDraft.strength||''}if(key==='weakness'){const el=document.querySelector('#rich-weakness');if(el)el.value=reviewDraft.weakness||''}renderReviewComparison()}}});
-const button=document.querySelector('#board-import');if(button)button.addEventListener('click',()=>{showPage('settings');renderAgentBuilder();document.querySelector('#agent-import-panel')?.scrollIntoView({block:'start',behavior:'smooth'});document.querySelector('#agent-subject')?.focus()});
+/* Reuse the existing import assistant DOM (and its bound events) inside a modal. */
+let importHome=null,importNext=null,importPanel=null;
+const closeBeforeImport=modalClose;
+function restoreImportPanel(){
+ if(!importPanel||!importHome)return;
+ importPanel.classList.remove('agent-in-modal');
+ if(importNext&&importNext.parentElement===importHome)importHome.insertBefore(importPanel,importNext);
+ else importHome.appendChild(importPanel);
+ importHome=null;importNext=null;importPanel=null;
+}
+modalClose=function(){restoreImportPanel();closeBeforeImport()};
+const button=document.querySelector('#board-import');
+if(button)button.addEventListener('click',()=>{
+ const panel=document.querySelector('#agent-import-panel');
+ if(!panel)return;
+ if(modalKind)modalClose();
+ importHome=panel.parentElement;importNext=panel.nextSibling;importPanel=panel;
+ const en=lang()==='en';
+ modalOpen('agent-import',en?'Import tasks':'Aufgaben importieren','AI · IMPORT',
+   '<div id="agent-import-modal-slot"></div><div class="modal-actions"><button type="button" class="btn outline" data-modal-cancel>'+(en?'Close':'Schließen')+'</button><button type="button" class="btn primary" id="agent-import-json-upload">'+(en?'Upload task JSON':'Aufgaben-JSON importieren')+'</button></div>');
+ document.querySelector('#agent-import-modal-slot').appendChild(panel);
+ panel.classList.add('agent-in-modal');
+ renderAgentBuilder();
+ document.querySelector('#agent-subject')?.focus();
+});
+document.addEventListener('click',e=>{if(e.target.closest('#agent-import-json-upload'))document.querySelector('#import-task-file')?.click()});
+
 })();
