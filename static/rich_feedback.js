@@ -28,6 +28,9 @@ function restoreImportPanel(){
  importHome=null;importNext=null;importPanel=null;
 }
 modalClose=function(){restoreImportPanel();closeBeforeImport()};
+// The main app bound its close button directly before this extension loaded.
+// Restore the reused panel in capture phase before that original click handler clears modal content.
+document.querySelector('#modal-close')?.addEventListener('click',restoreImportPanel,true);
 const button=document.querySelector('#board-import');
 if(button)button.addEventListener('click',()=>{
  const panel=document.querySelector('#agent-import-panel');
