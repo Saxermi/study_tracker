@@ -207,3 +207,19 @@ If you paste a JSON response into the exercise assessment dialog, **Save assessm
 Exercise rating now shows **My assessment** and **ChatGPT’s assessment** as two distinct sources, with a field-by-field comparison. You choose which individual GPT values to copy into your own rating. Pasting valid ChatGPT JSON and clicking Save stores both separately. Every field remains optional; the example JSON in the UI is never automatically saved. Both sources are exported in JSON and tasks CSV.
 
 Idle profile polling now checks a lightweight revision rather than transferring all JSON every five seconds, and large-board rendering is more efficient. See [the performance audit](docs/PERFORMANCE.md) and [exercise review specification](docs/EXERCISE_REVIEW.md).
+
+## Import assistant (v4.4): source-specific prompts and exact IDs
+
+Open **Settings → Import → Import assistant**. Select an **existing subject/module** and optionally an existing **parent task**, then a source type. Copy the displayed Markdown or save it as `.md`. It includes IDs from **your authenticated profile**. Paste or attach source material to ChatGPT/your agent, save the agent's plain JSON output, and import it through Settings or `data/inbox/<username>/`. **StudyTracker does not read emails directly.**
+
+Available bilingual Markdown playbooks:
+
+- [Email](prompts/import/email.md)
+- [ChatGPT breakdown](prompts/import/chatgpt.md)
+- [Exercise sheet / PDF](prompts/import/sheet.md)
+- [Lecture slides](prompts/import/lecture.md)
+- [Course platform announcement](prompts/import/lms.md)
+- [Syllabus](prompts/import/syllabus.md)
+- [Personal notes](prompts/import/notes.md)
+
+Generated tasks use `subject_id` (a verified ID, not a guessed subject name). For a newly created parent with subtasks, emit separate task objects linked through `parent_external_id`. For a **selected existing parent task**, attach direct children with `parent_id`. Do not use both keys together. The server checks that both IDs exist in the current user's profile and belong to the same subject. Older name-based imports continue to work.

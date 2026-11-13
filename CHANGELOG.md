@@ -1,5 +1,13 @@
 # Changelog (English)
 
+## 4.4 — ID-aware import assistant
+
+- Added an in-app import assistant with selected subject and optional existing parent task.
+- Seven source-specific prompt types, English/German Markdown documents and a copy/save flow.
+- Generated instructions include real `subject_id`/`parent_id` values and direct-child task rules.
+- Backend validates ID-based assignments atomically; older name-based import files still work.
+
+
 ## 4.1 — Study-time heatmap (24h / 48h / typical week)
 
 - Added a local-time 24-hour / 48-hour / typical-week heatmap, subject filtering, accessible hover/focus tooltips and both average and total weekly views.

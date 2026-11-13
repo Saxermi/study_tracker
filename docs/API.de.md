@@ -49,3 +49,7 @@ Timer-created sessions include an optional `focus_intervals` array of `{ "starte
 `PATCH /api/tasks/{id}/review` unterstützt `{"self":{"difficulty":2},"gpt":{"difficulty":3}}`. Fehlende Quellen bleiben unverändert, explizites `null` löscht sie. Alte flache Anfragen ändern nur die eigene Bewertung. Tasks und JSON-Backups enthalten `exercise_review` und `exercise_review_gpt` getrennt; Aufgaben-CSV bekommt eigene Spalten für beide.
 
 Das authentifizierte `GET /api/profile/revision` liefert eine kleine Änderungskennung als Zeichenkette. `GET /api/state` und Mutationen geben die gleiche Kennung zurück, um unnötige vollständige Profil-Downloads zu vermeiden.
+
+## Import-Assistent: ID-Felder (v4.4)
+
+`POST /api/import/tasks` unterstützt optional `subject_id` anstelle von `subject`; die ID muss im eingeloggten Profil existieren. Wenn beide angegeben werden, müssen sie dasselbe Fach bezeichnen. Eine zusätzliche `semester`-Angabe muss zur Fach-ID passen. `parent_id` verknüpft eine neue Teilaufgabe mit einer bestehenden Hauptaufgabe im selben Fach; bei neuen Hauptaufgaben verwende `parent_external_id`. Beide Elternfelder gleichzeitig sind ungültig. Fehler führen zum atomaren Abbruch. `format` bleibt `studytracker.tasks.v1`.

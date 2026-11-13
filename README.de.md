@@ -189,3 +189,19 @@ Wenn du eine JSON-Antwort im Bewertungsdialog einfügst, übernimmt **Bewertung 
 Im Bewertungsdialog stehen jetzt **Meine Einschätzung** und **ChatGPT-Einschätzung** mit einem direkten Vergleich. Einzelne GPT-Werte kannst du bewusst übernehmen; ohne Klick bleibt deine Bewertung unverändert. Eingefügtes GPT-JSON wird beim Speichern separat gesichert. Alle Angaben sind freiwillig; das JSON-Beispiel im Dialog wird nie automatisch gespeichert. JSON-Backups und Aufgaben-CSV enthalten beide Quellen.
 
 Die Leerlauf-Abfrage überträgt nicht mehr alle fünf Sekunden das ganze Profil. Zusätzlich wird das Rendern großer Datenbestände optimiert. Siehe [Performance-Check](docs/PERFORMANCE.de.md) und [Bewertungsformat](docs/EXERCISE_REVIEW.de.md).
+
+## Import-Assistent (v4.4): verschiedene Quellen, eindeutige IDs
+
+Öffne **Einstellungen → Import → Import-Assistent**. Wähle zuerst das **bestehende Fach/Modul** und optional eine vorhandene **Hauptaufgabe**, dann den Quellentyp. Kopiere die Vorschau direkt als Markdown oder lade die `.md`-Datei herunter. Sie enthält nur IDs deines **eigenen Profils**. Anschliessend fügst du den Quellinhalt bei ChatGPT/einem Agenten hinzu, speicherst dessen reines JSON und importierst es über Einstellungen oder `data/inbox/<username>/`. **StudyTracker liest selbst keine E-Mails.**
+
+Die Anleitungstypen (Deutsch und Englisch als separate Markdown-Dateien) sind:
+
+- [E-Mail](prompts/import/email.de.md)
+- [ChatGPT-Aufteilung](prompts/import/chatgpt.de.md)
+- [Übungsblatt / PDF](prompts/import/sheet.de.md)
+- [Vorlesungsfolien](prompts/import/lecture.de.md)
+- [Kursplattform](prompts/import/lms.de.md)
+- [Semesterplan](prompts/import/syllabus.de.md)
+- [Eigene Notizen](prompts/import/notes.de.md)
+
+Die generierten Aufgaben verwenden `subject_id` (exakte ID, kein Ratespiel). Für neue Hauptaufgaben und ihre Teilaufgaben verwende separate Aufgabenobjekte mit `parent_external_id`. Für Teilaufgaben einer **bestehenden ausgewählten** Hauptaufgabe nutze `parent_id`. Beide Felder dürfen nicht gemeinsam gesetzt werden. Der Server prüft, ob Fach und Hauptaufgabe im angemeldeten Profil existieren und zusammenpassen. Name-basierte ältere JSON-Importe bleiben kompatibel.

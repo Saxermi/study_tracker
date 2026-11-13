@@ -109,3 +109,7 @@ Eine Aufgabe darf **eine** optionale `exercise_review`-Bewertung besitzen, keine
 ## 4.3 — KI-Feedback getrennt behandeln
 
 Übungsbewertungen haben zwei unabhängige optionale Quellen: `exercise_review` für die eigene Bewertung und `exercise_review_gpt` für ausdrücklich eingefügtes KI-Feedback. Eigene Bewertungen niemals stillschweigend ersetzen und fehlende Grundlagen nicht erfinden. Das Aufgabenimportformat `studytracker.tasks.v1` bleibt unverändert; keine Bewertungen in Agenten-Importdateien einfügen.
+
+## Version 4.4: IDs aus dem Import-Assistenten
+
+Für ID-gebundene Importe liefert der Benutzer `subject_id` aus **Einstellungen → Import-Assistent**. Verwende ihn unverändert bei **jeder** Aufgabe; `subject` kann entfallen. `parent_id` verweist nur auf die tatsächlich ausgewählte bestehende Hauptaufgabe. Bei einer neu erstellten Hauptaufgabe verwende `parent_external_id` für alle direkten Kinder (eigenständige Objekte). Niemals beide Elternfelder gemeinsam oder eine zweite Ebene. Erfinde keine IDs. Der Agent kann keine Profile auslesen. Unterschiedliche Quellen haben Markdown-Anleitungen unter [`prompts/import/`](prompts/import/). E-Mails, ChatGPT-Aufteilung, Übungsblätter, Vorlesungsunterlagen, Lernplattform, Semesterplan und Notizen. Das JSON bleibt `studytracker.tasks.v1`; bestehende Name-basierte Importe funktionieren weiter.

@@ -44,3 +44,12 @@ Fehlerhafte JSON-Dateien landen in `rejected/` mit einer `.error.txt`, erfolgrei
 ### v4: Aufgaben für spätere Kategorieauswertungen markieren
 
 Passende Aufgaben können `"tags": ["Vorlesung"]`, `"tags": ["Videos"]` oder `"tags": ["Übungen"]` erhalten. Das sind nur **Aufgaben-Tags**, keine erfassten Lernzeiten. Die Kategorie wird beim Erfassen einer Lernsession bestimmt. `category_tag_id` gehört nicht ins Agenten-Aufgabenformat; das Importschema bleibt unverändert.
+
+## Gezielter Import per Fach-ID (v4.4)
+
+1. In Einstellungen → Import-Assistent ein vorhandenes Fach wählen (und gegebenenfalls die Hauptaufgabe).
+2. Quellentyp auswählen, generierte Markdown-Anleitung kopieren oder speichern.
+3. Quellmaterial nach der Anleitung an ChatGPT/den Agenten geben.
+4. Das vom Agenten ausgegebene `studytracker.tasks.v1`-JSON importieren.
+
+`subject_id` ist die exakte ID des Fachs im aktuellen Profil. Optionaler `parent_id` ist die ID einer **bestehenden** Hauptaufgabe im selben Fach. Ein unpassender oder fremder Wert führt zum Abbruch der ganzen Importdatei. Bei neuen Hauptaufgaben/Teilaufgaben wird stattdessen `parent_external_id` verwendet. Beispiel: [`examples/targeted-task-import.json`](../examples/targeted-task-import.json). Die detaillierten Quellentemplates liegen unter [`prompts/import/`](../prompts/import/).
