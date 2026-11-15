@@ -1,21 +1,52 @@
-# ChatGPT-Prompt: eine Exercise bewerten (Deutsch)
+# ChatGPT-Prompt: Exercise-Feedback im exakt gültigen JSON-Format (Deutsch)
 
-Kopiere diesen Prompt nach einer Übung in ChatGPT zusammen mit der Aufgabenstellung, deiner eigenen Lösung und dem relevanten Chatverlauf. Ohne diese Inhalte kann ChatGPT deine Selbstständigkeit nicht zuverlässig beurteilen. Der Prompt erscheint auch direkt im StudyTracker-Bewertungsdialog.
+Kopiere diese Anweisung und füge die Aufgabenstellung, deine Lösung und den relevanten Chat an. Die KI bewertet nur tatsächlich belegte Vorgänge; ohne ausreichende Evidenz muss sie Werte offenlassen.
 
-> Beurteile, wie selbstständig ich diese Übung gelöst habe, ausschließlich anhand der vorliegenden Aufgabenstellung, meiner Lösung und unseres Dialogs. Erfinde keine Beobachtungen, Fehler oder Hilfen. Wenn du etwas nicht beurteilen kannst, verwende `null`.
->
-> Gib **nur ein einzelnes JSON-Objekt** zurück mit den optionalen Feldern:
-> `difficulty` (1–5, 1=leicht), `outcome` (`correct`, `partial`, `incorrect`), `issue` (`concept`, `approach`, `calculation`, `implementation`, `instructions`, `careless`, `time`, `verification`), `help_total` (0–5), `help_chatgpt` (0–5). `0` bedeutet keine Hilfe; `null` bedeutet nicht bewertet. ChatGPT-Hilfe darf nicht höher als die gesamte Hilfe sein, wenn beide Zahlen bekannt sind. Keine Erläuterungen oder Codeblöcke.
->
-> Frage nicht nach nicht sichtbaren Daten, sondern verwende für diese `null`. Ich bestätige die Bewertung selbst in StudyTracker.
+## Verbindlicher Ausgabe-Vertrag
 
-Beispiel: `{"difficulty": 4, "outcome": "partial", "issue": "approach", "help_total": 3, "help_chatgpt": 2}`
+**Verbindliche Ausgabe:** Antworte mit GENAU EINEM kopierbaren JSON-Codeblock mit Sprachkennung json und OHNE Text davor oder danach. Im Codeblock steht genau ein gültiges JSON-Objekt. In einer gespeicherten .json-Datei stehen KEINE Markdown-Codezäune.
+**Typen und erlaubte Werte (Gross-/Kleinschreibung exakt; Feldnamen bleiben Englisch):**
+- **difficulty:** JSON-Ganzzahl 1, 2, 3, 4 oder 5 (niemals Wörter wie high/medium/low, keine Dezimalzahlen, Prozentwerte oder 0); bei unklarer Grundlage null.
+- **Schwierigkeitsmaßstab für das aktuelle Kursniveau:** 1 = sehr direktes Abrufen/Einsetzen ohne viel Schlussfolgern; 2 = bekannte Standardmethode mit wenigen Schritten; 3 = mittelschwere mehrstufige Aufgabe mit Entscheidungen oder Kombination bekannter Ideen; 4 = schwere Aufgabe mit mehreren nicht offensichtlichen Entscheidungen, Beweis oder ausführlicher Fehlersuche; 5 = besonders anspruchsvolle, ungewohnte Synthese mit viel eigenständigem Denken. Nicht anhand der erhaltenen Hilfe bewerten.
+- **outcome:** genau "correct", "partial" oder "incorrect" als JSON-String, sonst null. Ohne sichtbare Lösung bzw. Überprüfung keine Behauptung über Korrektheit.
+- **issue:** genau ein primärer Code aus concept, approach, calculation, implementation, instructions, careless, time, verification als JSON-String oder null. Keine freien Beschreibungen.
+- **issues:** JSON-Liste mit 0–3 UNTERSCHIEDLICHEN Strings aus denselben acht Codes; [] bedeutet keine belegten Probleme. Wenn issue gesetzt ist, muss es in issues enthalten sein.
+- **help_total:** JSON-Ganzzahl von 0 bis 5 oder null: Hilfe aus ALLEN Quellen. **help_chatgpt:** JSON-Ganzzahl 0 bis 5 oder null: nur ChatGPT-Hilfe; bei beiden Zahlen muss help_chatgpt <= help_total gelten.
+- **Hilfeskala (beide Felder):** 0 = keine Hilfe, 1 = winziger Hinweis/Kontrolle, 2 = etwas Anleitung, 3 = mehrere substanzielle Hinweise/Erklärungen, 4 = umfangreiche schrittweise Hilfe, 5 = fast vollständiger Lösungsweg bzw. Lösung geliefert. Keine Wörter wie high/low als JSON-Werte.
+- **chatgpt_interventions:** JSON-Liste von 0–3 UNTERSCHIEDLICHEN Strings aus verification, hint, guiding_questions, concept_explanation, approach_selection, step_by_step, debugging, calculation, code_generation, full_solution, error_identification; [] wenn unbelegt. Keine deutschen Anzeigenamen als Werte.
+- **strength:** ein konkreter belegbarer Satz als JSON-String mit MAXIMAL 200 Zeichen oder null; **weakness:** ebenfalls maximal 200 Zeichen oder null.
+- **skill_gap:** konkrete Kompetenzlücke als JSON-String mit MAXIMAL 100 Zeichen oder null; **next_action:** konkreter Übungsschritt als JSON-String mit MAXIMAL 160 Zeichen oder null.
+- Gib alle 11 Schlüssel aus dem Beispiel aus; keine neuen oder übersetzten Schlüssel. Texte mit doppelten JSON-Anführungszeichen, null ohne Anführungszeichen, Listen in eckigen Klammern; keine Kommentare, zusätzlichen Kommata oder weiteren Text.
+- Erfinde weder Stärke, Schwäche, Fehler, Ergebnis, Schwierigkeit noch Hilfe. Fehlende Evidenz -> null für einzelne Werte, [] für Problem-/Hilfelisten.
 
-Du kannst das Ergebnis direkt in das JSON-Feld im Bewertungsdialog einfügen, auf **ChatGPT-Antwort übernehmen** klicken, die Werte prüfen und sie dann speichern. Keine Angaben sind verpflichtend. Es gibt aktuell **nur eine Bewertung pro Aufgabe** und keinen Prüfungs- oder Wiederholungsmodus.
+## Beispiel: gültiges, direkt kopierbares JSON
 
-**StudyTracker 4.3:** Deine JSON-Antwort wird getrennt als GPT-Feedback gespeichert, nicht als eigene Bewertung. Ohne unabhängige Belege keine Übernahme der Selbstbewertung; unbelegte Felder mit `null` füllen.
+```json
+{
+  "difficulty": 3,
+  "outcome": "partial",
+  "issue": "approach",
+  "issues": [
+    "approach",
+    "concept"
+  ],
+  "help_total": 4,
+  "help_chatgpt": 4,
+  "chatgpt_interventions": [
+    "guiding_questions",
+    "concept_explanation"
+  ],
+  "strength": "Ich habe die Nebenbedingungen selbst erkannt.",
+  "weakness": "Ich brauchte Hilfe bei der Wahl der Pivotvariablen.",
+  "skill_gap": "Pivotvariablen im Simplexverfahren bestimmen",
+  "next_action": "Eine neue Pivotwahl-Aufgabe ohne Hinweise lösen."
+}
+```
 
+## Grundlage für die Bewertung
 
-**Kopierbares Ausgabeformat**: Antworte ausschließlich mit einem kopierbaren `json`-Codeblock (```json … ```), ohne Text davor oder danach. Speichere als `.json` nur dessen Inhalt ohne Codezäune.
+Aufgabenstellung: [hier einfügen]
+Eigene Lösung und wesentliche Zwischenschritte: [hier einfügen]
+Relevanter Chat und Rückmeldung: [hier einfügen]
 
-Optional additional assessment fields: `issues` (up to three distinct codes from `concept`, `approach`, `calculation`, `implementation`, `instructions`, `careless`, `time`, `verification`), `strength` and `weakness` (one specific evidence-based sentence, max 200 characters each), `skill_gap` (max 100), `next_action` (max 160), `chatgpt_interventions` (up to three of `verification`, `hint`, `guiding_questions`, `concept_explanation`, `approach_selection`, `step_by_step`, `debugging`, `calculation`, `code_generation`, `full_solution`, `error_identification`). Never invent observations; unsupported values may be null. `issue` remains the primary issue and must be included in `issues` when both are present.
+Das Ergebnis wird in StudyTracker als separate ChatGPT-Einschätzung gespeichert; die eigene Bewertung wird nicht automatisch überschrieben. Kein automatisches Speichern ganzer Chats und kein Verlauf mehrerer Lösungsversuche.

@@ -31,3 +31,7 @@ Omit a source to preserve it; explicitly send `null` to clear it. Old clients ma
 Return **one copyable fenced JSON code block** (```json ... ```) with no surrounding prose. When saving an import `.json` file, omit the fences and save **only** the JSON content.
 
 Additional optional feedback: `issues` (up to three issue codes); `strength` and `weakness` (one sentence each, max 200 characters); `skill_gap` (max 100); `next_action` (max 160); `chatgpt_interventions` (up to three of `verification`, `hint`, `guiding_questions`, `concept_explanation`, `approach_selection`, `step_by_step`, `debugging`, `calculation`, `code_generation`, `full_solution`, `error_identification`). Existing `issue` remains the primary issue. Sources remain separate and optional. No transcripts or attempt histories.
+
+## Exact JSON output and rating calibration
+
+The [complete English exercise-assessment prompt](../prompts/exercise-review.md) defines **all eleven fields**, their JSON types, exact enums, length/list limits and a calibrated **1–5** difficulty rubric. `difficulty`, `help_total`, and `help_chatgpt` are JSON integers, never strings such as `"high"`. The output must be one copyable fenced `json` block. Missing evidence: `null` for scalars and `[]` for unsupported lists.

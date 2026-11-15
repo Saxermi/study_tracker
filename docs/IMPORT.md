@@ -58,3 +58,7 @@ If the source is a lecture, add `"tags": ["Vorlesung"]`; for a video add `"tags"
 ## Copyable AI output
 
 Return **one copyable fenced JSON code block** (```json ... ```) with no surrounding prose. When saving an import `.json` file, omit the fences and save **only** the JSON content.
+
+## Mandatory JSON field types across every agent prompt
+
+All seven source playbooks and every in-app generated import prompt include the complete [typed import contract](../prompts/task-import-contract.md): exact keys, strings, integers, dates, enum values, array/length limits, and a valid example. In particular, `planned_minutes` is an integer whereas `priority` is one of the strings `low|normal|high`. JSON files themselves contain no Markdown fences.
