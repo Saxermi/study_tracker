@@ -94,7 +94,7 @@ test('all 14 static source prompts and both standalone email prompts give comple
   const text=get(source);
   for(const field of taskKeys)assert.ok(text.includes(field),source+' missing '+field);
   assert.match(text,/1.?150/,source+' must define tasks array length');
-  assert.match(text,/1(?:[–-]| bis )100000/,source+' must define numeric estimate');
+  assert.match(text,/1(?:[–-]| to | bis )100000/,source+' must define numeric estimate');
   assert.match(text,/null/);
   assert.match(text,/low/);
   assert.match(text,/normal/);
@@ -117,7 +117,7 @@ test('every live wizard source in both languages emits typed instructions and ex
   const typed=lang==='en'?'## Exact JSON field types':'## Exakte JSON-Feldtypen';
   assert.ok(text.includes(typed),source+' '+lang+' lacks strict schema');
   for(const field of taskKeys)assert.ok(text.includes(field),source+' '+lang+' missing '+field);
-  assert.match(text,/1(?:[–-]| bis )100000/);
+  assert.match(text,/1(?:[–-]| to | bis )100000/);
   assert.match(text,/YYYY-MM-DD/);
   const examples=jsonBlocks(text);
   const obj=examples[examples.length-1];
