@@ -31,3 +31,7 @@ Ausgelassene Quellen bleiben erhalten, `null` löscht die Quelle. Alte flache An
 Gib im Chat einen **kopierbaren JSON-Codeblock** (```json ... ```) ohne weiteren Text zurück. Importdateien enthalten ausschließlich den JSON-Inhalt **ohne** Codezäune.
 
 Additional optional feedback: `issues` (up to three issue codes); `strength` and `weakness` (one sentence each, max 200 characters); `skill_gap` (max 100); `next_action` (max 160); `chatgpt_interventions` (up to three of `verification`, `hint`, `guiding_questions`, `concept_explanation`, `approach_selection`, `step_by_step`, `debugging`, `calculation`, `code_generation`, `full_solution`, `error_identification`). Existing `issue` remains the primary issue. Sources remain separate and optional. No transcripts or attempt histories.
+
+## Exakte JSON-Ausgabe und Bewertungsmaßstab
+
+Der [vollständige deutsche Bewertungs-Prompt](../prompts/exercise-review.de.md) gibt für **alle elf Felder** JSON-Typen, exakte Enum-Werte, Zeichen- und Listengrenzen sowie den Schwierigkeitsmaßstab **1–5** vor. `difficulty` und `help_total`/`help_chatgpt` sind Ganzzahlen, niemals Strings wie `"high"`. Die Ausgabe ist genau ein kopierbarer `json`-Codeblock. Fehlende Belege: `null` für Einzelwerte, `[]` für nicht belegte Listen.

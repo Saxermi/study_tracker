@@ -58,3 +58,7 @@ Passende Aufgaben können `"tags": ["Vorlesung"]`, `"tags": ["Videos"]` oder `"t
 ## Kopierbare KI-Ausgaben
 
 Gib im Chat einen **kopierbaren JSON-Codeblock** (```json ... ```) ohne weiteren Text zurück. Importdateien enthalten ausschließlich den JSON-Inhalt **ohne** Codezäune.
+
+## Verbindliche JSON-Feldtypen für alle Agent-Prompts
+
+Jede der sieben Quellenanleitungen und jeder im UI erzeugte Import-Prompt enthält die vollständigen [JSON-Felddefinitionen](../prompts/task-import-contract.de.md): feste Schlüssel, Strings, Ganzzahlen, Datumsformat, Enum-Werte, Listen- und Längenbegrenzungen sowie ein gültiges Beispiel. Besonders `planned_minutes` ist eine Ganzzahl und `priority` einer der Strings `low|normal|high`. JSON-Dateien enthalten keine Markdown-Codezäune.
