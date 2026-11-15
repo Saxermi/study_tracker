@@ -1,20 +1,53 @@
-# ChatGPT prompt: assess one exercise (English)
+# Prompt: ChatGPT exercise assessment with exact JSON output (English)
 
-Copy this prompt into ChatGPT after an exercise, together with the actual exercise, your solution and the relevant chat. ChatGPT cannot reliably assess independence without this evidence. The prompt is also available in the StudyTracker assessment dialog.
+Copy these instructions and provide the exercise statement, your attempted solution and the relevant chat. Rate only evidence that is actually visible. Unknown values must remain unknown.
 
-> Assess how independently I solved this exercise, using **only** the exercise statement, my own solution and our chat. Do not invent observations, mistakes, or assistance. Use `null` for anything you cannot assess.
->
-> Return **one JSON object only** with individually optional fields: `difficulty` (1–5; 1=easy), `outcome` (`correct`, `partial`, `incorrect`), `issue` (`concept`, `approach`, `calculation`, `implementation`, `instructions`, `careless`, `time`, `verification`), `help_total` (0–5), `help_chatgpt` (0–5). `0` means no help; `null` means not assessed. ChatGPT help may not exceed total help when both are known. No prose outside the copyable JSON code block.
->
-> If evidence is unavailable, use `null` instead of guessing. I will review the assessment myself before saving.
+## Mandatory output contract
 
-Example: `{"difficulty": 4, "outcome": "partial", "issue": "approach", "help_total": 3, "help_chatgpt": 2}`
+**Required output:** Return precisely ONE copyable fenced JSON code block with language json and NO other text. Pasteable JSON inside must parse as one object. Do not include markdown fences in the JSON file itself.
+**Types and exact values (case-sensitive; field names always English):**
+- **difficulty:** JSON integer 1, 2, 3, 4, or 5 (never strings such as high/medium/low; never decimals, percentages or 0); use null if you cannot judge.
+- **difficulty calibration for the student's current course level:** 1 = straightforward recall/substitution, little reasoning; 2 = standard, familiar method with limited steps; 3 = moderate multi-step work requiring choices or combining known ideas; 4 = difficult task requiring several non-obvious decisions, proof, or substantial debugging; 5 = exceptionally challenging or unfamiliar synthesis requiring sustained independent reasoning. Judge intrinsic task demands, not how much help was received.
+- **outcome:** exactly "correct", "partial" or "incorrect" (JSON string), or null. Only assess correctness when the actual solution and evidence are visible.
+- **issue:** exactly one primary issue code from concept, approach, calculation, implementation, instructions, careless, time, verification; or null. Never output a natural-language description here.
+- **issues:** JSON array of 0–3 UNIQUE strings chosen from the same eight issue codes; [] means none evidenced. If issue is non-null, include it in issues. No fourth entry.
+- **help_total:** JSON integer 0–5, or null. This is the level of help from ALL sources, not hours or number of messages.
+- **help_chatgpt:** JSON integer 0–5, or null. This is only the ChatGPT portion; if both help numbers are known, help_chatgpt <= help_total.
+- **Help scale for both help fields:** 0 = no help, 1 = tiny hint/check, 2 = a little guidance, 3 = several substantive hints or explanations, 4 = major step-by-step assistance, 5 = practically the full method or solution supplied. Do not use words like high or low as JSON values.
+- **chatgpt_interventions:** JSON array of 0–3 UNIQUE strings from verification, hint, guiding_questions, concept_explanation, approach_selection, step_by_step, debugging, calculation, code_generation, full_solution, error_identification; [] when none are evidenced. Never use human-readable labels instead of these codes.
+- **strength:** one specific evidence-based sentence as a JSON string of MAX 200 characters, or null; **weakness:** likewise max 200 characters, or null.
+- **skill_gap:** short specific skill as a JSON string of MAX 100 characters, or null; **next_action:** one concrete practice step as a JSON string of MAX 160 characters, or null.
+- Include all 11 keys shown in the example, never rename or add keys. JSON strings have double quotes, null is unquoted, arrays use square brackets; no comments, trailing commas, or explanation outside the fenced code block.
+- Never fabricate a strength, weakness, mistake, successful outcome, difficulty or intervention. Missing evidence -> null for a scalar, [] for an issue/intervention list.
 
-Paste the response into the JSON field in the assessment dialog, choose **Apply ChatGPT response**, review values, and save. All fields are optional. Currently there is **only one assessment per task**, not one per attempt, and no exam or repeat-attempt mode.
+## Example: valid, directly copyable JSON
 
-**StudyTracker 4.3:** Your JSON will be stored as GPT feedback, distinct from the student's own assessment. Never copy the student's self-rating without independent evidence; use `null` for unsupported values.
+```json
+{
+  "difficulty": 3,
+  "outcome": "partial",
+  "issue": "approach",
+  "issues": [
+    "approach",
+    "concept"
+  ],
+  "help_total": 4,
+  "help_chatgpt": 4,
+  "chatgpt_interventions": [
+    "guiding_questions",
+    "concept_explanation"
+  ],
+  "strength": "I identified the constraints independently.",
+  "weakness": "I needed help selecting the pivot variable.",
+  "skill_gap": "Choosing simplex pivot variables",
+  "next_action": "Solve another pivot-selection problem without hints."
+}
+```
 
+## Evidence to assess
 
-**Copyable output format**: Return exactly one fenced `json` code block (```json … ```) with no other text, so the response has a Copy control. Save only its contents (without fences) in a `.json` file.
+Exercise statement: [paste here]
+Your solution and intermediate reasoning: [paste here]
+Relevant chat and feedback: [paste here]
 
-Optional additional assessment fields: `issues` (up to three distinct codes from `concept`, `approach`, `calculation`, `implementation`, `instructions`, `careless`, `time`, `verification`), `strength` and `weakness` (one specific evidence-based sentence, max 200 characters each), `skill_gap` (max 100), `next_action` (max 160), `chatgpt_interventions` (up to three of `verification`, `hint`, `guiding_questions`, `concept_explanation`, `approach_selection`, `step_by_step`, `debugging`, `calculation`, `code_generation`, `full_solution`, `error_identification`). Never invent observations; unsupported values may be null. `issue` remains the primary issue and must be included in `issues` when both are present.
+StudyTracker saves the result as a separate ChatGPT assessment; it never silently replaces your own rating. Full chat transcripts and repeated-attempt histories are not stored.
