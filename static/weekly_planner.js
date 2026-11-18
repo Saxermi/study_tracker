@@ -147,7 +147,7 @@
     });
     document.addEventListener('click',async e=>{
       if(e.target.closest('[data-attendance-later]')){
-        for(const entry of outstandingLectures(state?.productivity||{}).slice(0,3))
+        for(const entry of outstandingLectures(state?.productivity||{}).filter(p=>!deferredAttendance.has(p.lecture.id+':'+p.day)).slice(0,3))
           deferredAttendance.add(entry.lecture.id+':'+entry.day);
         renderAttendance();return;
       }
