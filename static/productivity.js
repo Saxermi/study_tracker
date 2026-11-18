@@ -28,6 +28,7 @@
   }
   let draftTask = null, draftNote = '';
   let shellReady = false;
+  let displayedDay = null;
   const openTasks = () => (state?.tasks || []).filter(t=>t.status!=='done');
   function ensureShell() {
     if(shellReady) return;
@@ -136,6 +137,7 @@
     ensureShell();
     if(!shellReady)return;
     const day = localDay(new Date());
+    displayedDay = day;
     const plan = state.productivity?.daily_plans?.[day] || {priority_ids:[],capacity_minutes:null};
     const candidates = openTasks();
     const selected = (plan.priority_ids || []).filter(id=>state.tasks.some(t=>t.id===id));
@@ -226,6 +228,7 @@
     updateProductivityClock();
   }
   function updateProductivityClock(){
+    if(shellReady && state && displayedDay!==localDay(new Date()))renderProductivity();
     const el=$p('#productivity-focus-clock');
     if(!el||$p('#productivity-focus-overlay')?.hidden||!state?.active_timer)return;
     const seconds=timerTime('focus');
