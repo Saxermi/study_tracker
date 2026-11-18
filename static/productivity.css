@@ -1,0 +1,39 @@
+/* Optional productivity workflow; colors follow existing theme variables. */
+.productivity-plan {padding:24px;margin-bottom:20px}
+.productivity-plan-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;flex-wrap:wrap;margin-bottom:16px}
+.productivity-plan-heading h3{font-size:20px;margin:5px 0}
+.productivity-plan-heading p{max-width:690px;margin:4px 0}
+.productivity-priorities{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.productivity-priorities label,.productivity-budget label,.productivity-review-form label,.productivity-resume-label{display:flex;flex-direction:column;gap:7px;font-size:12px;font-weight:700;color:var(--ink)}
+.productivity-choice,.productivity-budget input,.productivity-review-form textarea,.productivity-resume-label textarea{
+  width:100%;min-width:0;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);
+  padding:12px;font:inherit;font-size:13px;line-height:1.5}
+.productivity-choice:focus-visible,.productivity-budget input:focus-visible,.productivity-review-form textarea:focus-visible,
+.productivity-resume-label textarea:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.productivity-budget{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-top:18px}
+.productivity-budget input{max-width:230px}
+#productivity-budget-summary{font-size:12px;padding:12px 0;color:var(--muted);flex:1}
+.productivity-overbooked{font-weight:750;color:#bc5a31!important}
+.productivity-plan-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:17px}
+.productivity-next{font-size:12px;color:var(--primary);font-weight:650;line-height:1.5;margin:6px 0}
+.productivity-setting{margin-top:20px;padding:18px}
+.productivity-setting label{display:flex;gap:12px;align-items:center;color:var(--ink);font-weight:650}
+.productivity-setting input{accent-color:var(--primary);width:18px;height:18px}
+.productivity-focus-overlay[hidden],.productivity-review-dialog:not([open]){display:none}
+.productivity-focus-overlay{position:fixed;inset:0;z-index:100;background:var(--bg);color:var(--ink);display:flex;align-items:center;justify-content:center;overflow:auto;padding:18px}
+.productivity-focus-panel{background:var(--surface);border:1px solid var(--line);border-radius:24px;box-shadow:0 20px 80px #161b3326;width:min(100%,680px);padding:clamp(20px,4vw,48px);text-align:center}
+.productivity-focus-header{display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left}
+.productivity-focus-panel h2{margin:32px 0 8px;font-size:clamp(22px,3vw,35px);overflow-wrap:anywhere}
+.productivity-focus-next{color:var(--muted);min-height:20px}
+.productivity-focus-clock{font-size:clamp(46px,8vw,82px);font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-2px;margin:26px 0 8px}
+.productivity-focus-actions{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin:27px 0}
+.productivity-resume-label{text-align:left;margin:30px 0 12px}
+.productivity-resume-label textarea{resize:vertical}
+.productivity-focus-panel>.inside-hint{display:block;margin-top:20px}
+.productivity-review-dialog{width:min(94vw,650px);max-height:90vh;overflow:auto;border:1px solid var(--line);border-radius:20px;padding:26px;background:var(--surface);color:var(--ink);box-shadow:0 20px 70px #141a335c}
+.productivity-review-dialog::backdrop{background:#12172e80}
+.productivity-review-form{display:grid;gap:16px}
+.productivity-review-form .productivity-plan-heading{margin-bottom:0}
+.productivity-review-form textarea{resize:vertical}
+@media(max-width:790px){.productivity-priorities{grid-template-columns:1fr}.productivity-budget{display:block}.productivity-focus-panel{padding:22px}.productivity-focus-actions .btn{flex:1 1 130px}}
+@media(prefers-reduced-motion:reduce){.productivity-focus-overlay *{animation:none!important;transition:none!important}}
