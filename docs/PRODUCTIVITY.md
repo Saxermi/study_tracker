@@ -28,6 +28,35 @@ in the profile JSON (and the existing JSON backup).
    obstacles, a future adjustment, and an optional if-then plan. Each review is keyed
    to the Monday of the user's local week.
 
+## Weekly study time budgets by subject (time-first planning)
+
+On **Week**, optionally assign focus **hours to each subject**, e.g. Mathematics:
+4 h, Programming: 2 h, then decide which tasks to attempt with those resources.
+This adds an optional `subject_minutes` map to that Monday's weekly plan;
+it does not change existing task estimates, daily commitments, lectures or
+Kanban status. Blank or zero means no target. Existing per-subject default
+weekly goals can be copied into the week via an explicit button.
+
+The Week view compares planned vs actual focus time per subject from saved
+sessions and the current timer. **Today** shows the same current-week
+commitments; **Accomplishments** acknowledges weekly focus time even if nothing
+has been marked done. Breaks are excluded; lecture attendance alone never
+adds study time. A filled time bar represents *effort invested*, not learning
+mastery or completed assignments. Historical weekly plans and version-2 backups
+without subject budgets are supported.
+
+Example API:
+
+```http
+PATCH /api/productivity/weekly-plan
+{"week_start":"2026-11-16","subject_minutes":{"mathe":240,"info":120}}
+```
+
+Partial weekly-plan PATCH requests preserve previously stored days,
+outcome IDs and time budgets. Invalid subject references and impossible
+weekly budgets are rejected. Scientific rationale and limitations:
+[PSYCHOLOGY.md](PSYCHOLOGY.md).
+
 ## Optional weekly planning, recurring lectures and accomplishments
 
 The **Week** page is separate from Today and is never required. Plan up to three weekly
