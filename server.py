@@ -290,7 +290,23 @@ def weekly_plan_fields(state, week, value):
         cleaned[day] = ids
     if not isinstance(outcomes, list) or len(outcomes) > 3 or any(not isinstance(x, str) or x not in known for x in outcomes) or len(set(outcomes)) != len(outcomes):
         err("Bis zu drei unterschiedliche Wochenziele auswählen.")
-    return {"days": cleaned, "outcome_ids": outcomes}
+    # Optional effort commitments, independent from task estimates and completion.
+    raw_subjects = value.get("subject_minutes", {})
+    if not isinstance(raw_subjects, dict) or len(raw_subjects) > 500:
+        err("Ungültiges Lernzeitbudget je Fach.")
+    known_subjects = {entry["id"] for entry in state["subjects"]}
+    subject_minutes = {}
+    for sid, minutes in raw_subjects.items():
+        if not isinstance(sid, str) or sid not in known_subjects:
+            err("Unbekanntes Fach im Wochenbudget.")
+        if isinstance(minutes, bool):
+            err("Lernzeitbudget muss eine Zahl sein.")
+        if minutes is None or minutes == "" or minutes == 0:
+            continue
+        subject_minutes[sid] = number(minutes, "Lernzeitbudget", 1, 10080)
+    if sum(subject_minutes.values()) > 10080:
+        err("Insgesamt können höchstens 168 Stunden pro Woche geplant werden.")
+    return {"days": cleaned, "outcome_ids": outcomes, "subject_minutes": subject_minutes}
 
 
 def validate_productivity(value, state):
@@ -857,8 +873,10 @@ def mutate(user_id, method, path, body):
                 reviews.pop(old, None)
         elif path == "/api/productivity/weekly-plan" and method == "PATCH":
             week = due(body.get("week_start"))
-            plan = weekly_plan_fields(s, week, body)
             plans = s["productivity"]["weekly_plans"]
+            # A partial PATCH must not silently erase time budgets, days, or goals.
+            previous = plans.get(week, {})
+            plan = weekly_plan_fields(s, week, {**previous, **body})
             plans[week] = plan
             for old in sorted(plans)[:-156]:
                 plans.pop(old, None)

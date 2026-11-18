@@ -5,6 +5,54 @@ Research on goal pursuit, self-regulation, interruptions and work performance pr
 The strongest evidence generally addresses **mechanisms**, not complete productivity applications.
 The tool stays local-first and requests **no OS permissions**, website access, browser history, or notification interception.
 
+## Time-first study planning: effort is not the same as task completion
+
+The StudyTracker weekly planner now supports optional **subject-specific focus-time
+budgets** (e.g., Mathematics 4 hours; Programming 2 hours) and compares the plan
+with recorded focus sessions. The Today and Accomplishments pages acknowledge
+focus time even when no task is marked completed. This is an effort/consistency
+measure, **not evidence of mastery, efficiency or achievement**. Lectures marked
+attended do not automatically add study time; breaks are excluded.
+
+The best-supported model is **time budget first, meaningful tasks second**, not
+replacing tasks with hour-only scores. Our evidence assessment:
+
+- **Memmi & Etkin (2026)**, *Time before goals: the benefits of budgeting time
+  first for multiple goal setting and pursuit*, *Organizational Behavior and
+  Human Decision Processes*, 195, article 104498.
+  https://doi.org/10.1016/j.obhdp.2026.104498
+  Experimental research finds that allocating a limited time budget across
+  competing goals *before* setting performance targets can improve realistic
+  goal setting and subsequent progress. Workplace/multiple-goal tasks, not
+  a direct evaluation of subject-level study-tracker UI.
+- **Theobald (2025)**, *Study longer or study effectively? Better study strategies
+  can compensate for less study time and predict goal achievement and lower
+  negative affect*, *British Journal of Educational Psychology*, 95(2), 405–420.
+  https://doi.org/10.1111/bjep.12725
+  231 university students reported daily study time and strategies over 30
+  days. Effective strategies can compensate for fewer study hours; time and
+  quality should not be treated as equivalent.
+- **Aeon, Faber & Panaccio (2021)**, *Does time management work? A meta-analysis*,
+  *PLOS ONE*. https://doi.org/10.1371/journal.pone.0245066
+  Time management correlates with achievement and well-being, but much evidence
+  is correlational.
+- **Oreopoulos & Petronijevic (2019)**, *Goal Setting, Academic Reminders, and
+  College Success: A Large-Scale Field Experiment*,
+  *Journal of Research on Educational Effectiveness*, 12(1), 38–66.
+  https://doi.org/10.1080/19345747.2018.1517849
+  A randomized field study found no evidence that goal-setting/reminder
+  interventions improved credits, GPA, or persistence. More planning is not
+  intrinsically successful.
+
+**Design boundaries:** Weekly budget entries are optional, per user and week;
+existing subject default goals can be copied into a week deliberately, but no
+time budget is forced or automatically carried over. Historical time tracking
+and completion states are unchanged. The time display is descriptive: the app
+does not award points, punish missed budgets, or equate hitting a time target
+with having learned a subject. Per-subject time is assigned to the local
+week in which each focus session started, consistent with the existing weekly
+summary; sessions crossing Sunday midnight are not split.
+
 ## New workflow decisions (November 2026)
 
 | Feature | Design | Scientific rationale | Important limitation |

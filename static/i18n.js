@@ -334,6 +334,26 @@ Object.assign(TRANSLATIONS, {
   "Sa": "Sat",
   "So": "Sun"
 });
+// Time-first weekly budget translations.
+Object.assign(TRANSLATIONS, {
+  "ZEIT ZUERST PLANEN": "PLAN TIME FIRST",
+  "Lernzeit pro Fach": "Study time by subject",
+  "Plane verfügbare Fokuszeit, nicht zwangsläufig die Zahl erledigter Aufgaben. Auch lange schwierige Aufgaben zählen. Die Planung bleibt optional.": "Plan focused time rather than only the number of finished tasks. Difficult, time-consuming tasks still count. Planning remains optional.",
+  "Stunden pro Woche": "Hours per week",
+  "z. B. 4": "e.g. 4",
+  "investiert": "invested",
+  "Ohne Zeitvorgabe": "No time target",
+  "Fachzeitbudget speichern": "Save subject time budgets",
+  "Fach-Standardziele übernehmen": "Use default subject targets",
+  "Nur Timer- und Session-Fokuszeit, ohne Pausen. Vorlesungsanwesenheit wird nicht automatisch als Lernzeit gezählt.": "Only tracked focus time, excluding breaks. Lecture attendance never automatically counts as study time.",
+  "Bitte gültige Stundenwerte eingeben.": "Please enter valid hour amounts.",
+  "LERNZEIT DIESE WOCHE": "STUDY TIME THIS WEEK",
+  "Lernzeit zählt auch bei noch offenen Aufgaben.": "Study time counts even while tasks remain open.",
+  "AUFWAND ZÄHLT AUCH OHNE ABSCHLUSS": "EFFORT COUNTS BEFORE COMPLETION",
+  "Wirklich investierte Zeit — unabhängig davon, ob eine Aufgabe abgeschlossen ist. Zeit allein garantiert keinen Lernerfolg.": "Actual focused time invested, whether or not a task was completed. Time alone does not guarantee learning.",
+  "Geplant:": "Planned:",
+  "Diese Woche:": "This week:"
+});
 const patterns = [
  [/^Priorität ([123])$/,m=>`Priority ${m[1]}`],
  [/^([0-9]+) von ([0-9]+) Prioritäten erledigt$/,m=>`${m[1]} of ${m[2]} priorities completed`],
