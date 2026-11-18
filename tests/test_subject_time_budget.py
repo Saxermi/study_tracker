@@ -76,7 +76,9 @@ class SubjectTimeBudgetTests(unittest.TestCase):
         self.assertEqual(state['tasks'][0]['status'],'todo')
         self.assertEqual(len(state['sessions']),1)
         self.assertEqual(state['sessions'][0]['duration_seconds'],4*3600)
-        self.assertEqual(state['sessions'][0]['break_seconds'],600)
+        # Manual sessions do not accept arbitrary break totals without intervals.
+        # The existing server normalization keeps the focus duration intact.
+        self.assertEqual(state['sessions'][0]['break_seconds'],0)
 
     def test_backup_roundtrip_and_old_weekly_plans(self):
         self.patch(subject_minutes={'mathe':240})
