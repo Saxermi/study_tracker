@@ -9,6 +9,22 @@
   const offsetDay=(key,n)=>{const d=midday(key);d.setDate(d.getDate()+n);return localDate(d)};
   const monday=day=>{const d=midday(day);d.setDate(d.getDate()-(d.getDay()+6)%7);return localDate(d)};
   const datesInWeek=week=>Array.from({length:7},(_,i)=>offsetDay(week,i));
+  const fmtFocus=seconds=>{const m=Math.round(Math.max(0,seconds)/60);return m>=60?Math.floor(m/60)+' h'+(m%60?' '+m%60+' min':''):m+' min'};
+  // Same start-week attribution as existing StudyTracker summaries. Pauses excluded.
+  function subjectFocusSeconds(sessions,id,week,active=null,now=new Date()){
+    const end=offsetDay(week,7);
+    const inWeek=start=>{const day=localDate(new Date(start));return day>=week&&day<end};
+    let sec=(sessions||[]).reduce((n,s)=>n+(s.subject_id===id&&inWeek(s.started_at)?Math.max(0,Number(s.duration_seconds)||0):0),0);
+    if(active?.subject_id===id&&active.first_started_at&&inWeek(active.first_started_at)){
+      sec+=Math.max(0,Number(active.focus_seconds)||0);
+      if(active.mode==='focus'&&active.mode_since)sec+=Math.max(0,Math.floor((now-new Date(active.mode_since))/1000));
+    }
+    return sec;
+  }
+  function subjectWeekStats(subjects,sessions,week,targets={},active=null,now=new Date()){
+    const rows=subjects.map(subject=>({subject,target:targets[subject.id]??null,seconds:subjectFocusSeconds(sessions,subject.id,week,active,now)}));
+    return {rows,plannedMinutes:rows.reduce((n,r)=>n+(r.target||0),0),seconds:rows.reduce((n,r)=>n+r.seconds,0)};
+  }
   const dayLabels=['Mo','Di','Mi','Do','Fr','Sa','So'];
   const dateLabel=day=>midday(day).toLocaleDateString(StudyI18n?.language==='en'?'en-GB':'de-CH',{day:'2-digit',month:'short'});
   function currentAtZone(zone,when=new Date()){
@@ -36,7 +52,7 @@
     pending.sort((a,b)=>b.day.localeCompare(a.day)||a.lecture.start_time.localeCompare(b.lecture.start_time));
     return pending;
   }
-  const stateForWeek=(week)=>state?.productivity?.weekly_plans?.[week]||{outcome_ids:[],days:{}};
+  const stateForWeek=(week)=>state?.productivity?.weekly_plans?.[week]||{outcome_ids:[],days:{},subject_minutes:{}};
   let chosenWeek=monday(localDate(new Date()));
   let doneRange='week';
   let lastAttendanceCheck=0;
@@ -51,9 +67,23 @@
     const outcomes=(plan.outcome_ids||[]).map(id=>state.tasks.find(t=>t.id===id)).filter(Boolean);
     const lectureOptions=state.subjects.filter(s=>!s.archived).map(x=>'<option value="'+h(x.id)+'">'+h(x.name)+'</option>').join('');
     const lectures=state.productivity?.lectures||[];
+    const budget=subjectWeekStats(state.subjects,state.sessions,chosenWeek,plan.subject_minutes||{},state.active_timer);
+    const budgetRows=budget.rows.filter(r=>!r.subject.archived||r.target!=null||r.seconds>0);
+    const defaultGoals=state.subjects.filter(s=>!s.archived&&s.weekly_goal_minutes);
     root.innerHTML='<section class="panel weekly-header"><div><strong>'+h(dateLabel(days[0]))+' – '+h(dateLabel(days[6]))+'</strong><p class="inside-hint">Du kannst die Wochenplanung jederzeit ignorieren. Vorhandene Heute-Markierungen bleiben unabhängig.</p></div>'+
       '<div class="weekly-nav"><button type="button" class="btn outline" data-week-shift="-7" aria-label="Vorherige Woche">‹</button><button type="button" class="btn outline" data-week-current>Heute</button><button type="button" class="btn outline" data-week-shift="7" aria-label="Nächste Woche">›</button></div></section>'+
       '<div id="weekly-attendance" class="weekly-attendance"></div>'+
+      '<section class="panel weekly-subject-budget"><div class="weekly-budget-heading"><div><span class="eyebrow">ZEIT ZUERST PLANEN</span><h3>Lernzeit pro Fach</h3><p class="inside-hint">Plane verfügbare Fokuszeit, nicht zwangsläufig die Zahl erledigter Aufgaben. Auch lange schwierige Aufgaben zählen. Die Planung bleibt optional.</p></div>'+
+      '<div class="weekly-budget-total"><strong>'+fmtFocus(budget.seconds)+'</strong><small>investiert · '+fmtFocus(budget.plannedMinutes*60)+' geplant</small></div></div>'+
+      '<form id="weekly-subject-budget-form"><div class="weekly-subject-budget-rows">'+budgetRows.map(r=>{
+        const target=r.target||0,pct=target?Math.min(100,Math.round(r.seconds/(target*60)*100)):0;
+        return '<div class="weekly-subject-budget-row"><div class="weekly-budget-name"><span class="weekly-color-dot" style="background:'+h(r.subject.color)+'"></span><strong>'+h(r.subject.name)+'</strong></div>'+
+        '<label>Stunden pro Woche <input type="number" data-subject-budget="'+h(r.subject.id)+'" min="0" max="168" step="0.25" value="'+(target?target/60:'')+'" placeholder="z. B. 4" aria-label="Geplante Stunden für '+h(r.subject.name)+'"></label>'+
+        '<div class="weekly-budget-result"><strong>'+fmtFocus(r.seconds)+' investiert</strong><small>'+(target?'von '+fmtFocus(target*60)+' geplant':'Ohne Zeitvorgabe')+'</small>'+
+        '<div class="weekly-budget-progress" role="progressbar" aria-label="Zeitbudget '+h(r.subject.name)+'" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+pct+'"><div style="width:'+pct+'%;background:'+h(r.subject.color)+'"></div></div></div></div>';
+      }).join('')+'</div><div class="weekly-plan-actions"><button class="btn primary" type="submit">Fachzeitbudget speichern</button>'+
+      (defaultGoals.length?'<button class="btn outline" type="button" id="weekly-use-default-goals">Fach-Standardziele übernehmen</button>':'')+
+      '<small class="inside-hint">Nur Timer- und Session-Fokuszeit, ohne Pausen. Vorlesungsanwesenheit wird nicht automatisch als Lernzeit gezählt.</small></div></form></section>'+
       '<section class="panel weekly-goals"><h3>Wichtige Wochenziele <small>(max. 3, optional)</small></h3><div class="weekly-goal-items">'+
       (outcomes.map(t=>'<div class="weekly-goal-item"><span class="'+(t.status==='done'?'weekly-finished':'')+'">'+h(t.title)+(t.status==='done'?' ✓':'')+'</span><button class="btn outline" type="button" data-week-goal-remove="'+h(t.id)+'">Entfernen</button></div>').join('')||'<p class="inside-hint">Keine Wochenziele ausgewählt.</p>')+
       '</div><form id="weekly-goal-form" class="weekly-inline"><label>Wochenziel hinzufügen<select id="weekly-goal-task" required><option value="">Aufgabe wählen</option>'+taskOptions+'</select></label><button class="btn primary" type="submit" '+(outcomes.length>=3?'disabled':'')+'>Hinzufügen</button></form></section>'+
