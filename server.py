@@ -1009,6 +1009,11 @@ def mutate(user_id, method, path, body):
                 timer_switch(t, "paused")
             if t["focus_seconds"] < 1:
                 err("Mindestens eine Sekunde Fokuszeit nötig.")
+            finish_task = body.get("complete_task", False)
+            if not isinstance(finish_task, bool):
+                err("Aufgabenabschluss muss ein Wahrheitswert sein.")
+            if finish_task and not t.get("task_id"):
+                err("Zum Abschließen muss der Timer mit einer Aufgabe verknüpft sein.")
             begun = timestamp(t["first_started_at"])
             s["sessions"].append({"id": uid(), "subject_id": t["subject_id"], "task_id": t["task_id"],
                                   "title": t["title"], "notes": t.get("notes", ""), "tags": t["tags"],
@@ -1017,6 +1022,10 @@ def mutate(user_id, method, path, body):
                                   "duration_seconds": t["focus_seconds"], "break_seconds": t["break_seconds"], "breaks": t["breaks"],
                                   "focus_intervals": t.get("focus_intervals", []),
                                   "source": "timer", "created_at": iso()})
+            if finish_task:
+                row = task(s, t["task_id"])
+                update_task_status(s, row, "done")
+                message["completed_task_id"] = row["id"]
             s["active_timer"] = None
         elif path == "/api/timer/discard" and method == "POST":
             if not s["active_timer"]:
