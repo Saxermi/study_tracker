@@ -38,8 +38,7 @@
   const stateForWeek=(week)=>state?.productivity?.weekly_plans?.[week]||{outcome_ids:[],days:{}};
   let chosenWeek=monday(localDate(new Date()));
   let doneRange='week';
-  let lastPromptKey=null;
-  const priorities =()=>state?.productivity?.weekly_plans||{};
+  let lastAttendanceCheck=0;
   function renderWeeklyPlanner(){
     const root=$w('#weekly-planner-root');
     if(!root||!state)return;
@@ -61,7 +60,9 @@
         const events=lectures.filter(l=>lectureOccurs(l,day)).sort((a,b)=>a.start_time.localeCompare(b.start_time));
         return '<section class="panel weekly-day"><div class="weekly-day-head"><h3>'+dayLabels[i]+' <small>'+h(dateLabel(day))+'</small></h3><span class="inside-hint">'+planned.length+' Aufgaben</span></div>'+
           '<div class="weekly-day-events">'+events.map(l=>'<div class="weekly-lecture"><strong>'+h(l.start_time)+'–'+h(l.end_time)+' · '+h(l.title)+'</strong><small>'+h(state.subjects.find(x=>x.id===l.subject_id)?.name||'')+'</small>'+
-          (l.attendance?.[day]?'<span class="weekly-status">'+h(({attended:'Besucht',missed:'Nicht besucht',excused:'Entschuldigt'})[l.attendance[day]])+'</span>':'')+'</div>').join('')+
+          (l.attendance?.[day]?'<span class="weekly-status">'+h(({attended:'Besucht',missed:'Nicht besucht',excused:'Entschuldigt'})[l.attendance[day]])+'</span>':'')+
+          (lecturePassed(l,day)?'<details class="weekly-lecture-confirm"><summary>Anwesenheit '+(l.attendance?.[day]?'ändern':'bestätigen')+'</summary><div class="weekly-attendance-actions">'+
+          [['attended','Ja'],['missed','Nein'],['excused','Entschuldigt']].map(([status,label])=>'<button type="button" class="btn outline" data-attendance-id="'+h(l.id)+'" data-attendance-day="'+h(day)+'" data-attendance-status="'+status+'">'+label+'</button>').join('')+'</div></details>':'')+'</div>').join('')+
           planned.map(t=>'<div class="weekly-task"><span class="'+(t.status==='done'?'weekly-finished':'')+'">'+h(t.title)+(t.status==='done'?' ✓':'')+'</span><button class="weekly-remove" type="button" data-week-remove="'+h(day)+'" data-week-task="'+h(t.id)+'" title="Aus diesem Tag entfernen">×</button></div>').join('')+'</div>'+
           '<form class="weekly-inline weekly-add-form" data-week-day="'+h(day)+'"><label>Aufgabe planen<select name="task" required><option value="">Aufgabe wählen</option>'+taskOptions+'</select></label><button type="submit" class="btn outline">+</button></form></section>';
       }).join('')+'</div>'+
@@ -161,7 +162,7 @@
     const subjects=state.subjects;
     const cards=visible.slice(0,80).map(t=>{
       const sub=subjects.find(s=>s.id===t.subject_id);
-      const used=state.sessions.filter(s=>s.task_id===t.id).reduce((n,s)=>n+s.duration_seconds,0);
+      const used=secondsByTask(t.id);
       return '<article class="panel accomplishment-card"><div class="accomplishment-check">✓</div><div><strong>'+h(t.title)+'</strong><div class="accomplishment-meta">'+h(sub?.name||'')+' · '+h(localDate(new Date(t.completed_at)))+
         (goals.has(t.id)?' · Wochenziel erreicht':'')+(used>0?' · '+Math.round(used/60)+' min Fokus':'')+'</div></div></article>';
     }).join('');
@@ -184,13 +185,18 @@
       node.id='today-lecture-attendance';node.hidden=true;
       today.insertBefore(node,today.querySelector('.today-summary'));
     }
+    if(typeof state!=='undefined'&&state)renderAttendance();
     bindWeeklyPlanner();
     bindAccomplishments();
   }
   if(typeof window!=='undefined'){
     window.renderWeeklyPlanner=()=>{if(state&&$w('#weekly-planner-root'))renderWeeklyPlanner();};
     window.renderAccomplishments=()=>{if(state&&$w('#accomplishments-root'))renderAccomplishments();};
-    window.renderLectureAttendance=()=>{if(state)renderAttendance();};
+    window.renderLectureAttendance=()=>{
+      if(!state)return;
+      const now=Date.now();
+      if(now-lastAttendanceCheck>=60000){lastAttendanceCheck=now;renderAttendance();}
+    };
   }
   if(typeof module==='object'&&module.exports)module.exports={localDate,monday,offsetDay,datesInWeek,lectureOccurs,lecturePassed,outstandingLectures};
   if(typeof document!=='undefined')document.addEventListener('DOMContentLoaded',init);
