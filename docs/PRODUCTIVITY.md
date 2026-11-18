@@ -28,6 +28,57 @@ in the profile JSON (and the existing JSON backup).
    obstacles, a future adjustment, and an optional if-then plan. Each review is keyed
    to the Monday of the user's local week.
 
+## Optional weekly planning, recurring lectures and accomplishments
+
+The **Week** page is separate from Today and is never required. Plan up to three weekly
+outcomes and assign any open task to a Monday–Sunday day column; no task is moved
+or pinned automatically. Weekly plans have their own records and do not affect Today
+selections.
+
+Enter a **recurring lecture** once with a subject, weekday, local start/end times,
+first date, optional last date and IANA timezone. The timetable shows matching
+occurrences. After the scheduled end, the next time the app is open on Week or Today,
+an inline prompt asks **attended / missed / excused**, never inferring attendance from
+the existence of a calendar entry. Prompts cover recent unconfirmed occurrences and
+are shown only within StudyTracker. Deleting a recurring lecture removes its attendance
+data; no OS notifications or calendar access is requested.
+
+The **Accomplishments** page displays completed tasks from this week, the past
+30 days, or all time. It puts user-chosen weekly outcomes first and avoids counting
+a completed parent and its completed children as multiple separate outcomes.
+It does not assign XP, streaks or scores.
+
+Within Focus Mode, **Nur Session speichern** records time without marking the task
+complete. **Aufgabe fertig + speichern** performs an atomic timer stop and linked
+task completion. A single optional next-task suggestion is shown (prioritizing
+user-selected daily and weekly goals); the user must explicitly choose to start.
+**Timer verwerfen** retains the existing confirmation and discards unsaved time.
+
+### New API endpoints
+
+```http
+PATCH /api/productivity/weekly-plan
+{"week_start":"2026-11-16","outcome_ids":["task-id"],"days":{"2026-11-18":["task-id"]}}
+
+POST /api/productivity/lectures
+{"title":"Analysis II","subject_id":"mathe","weekday":0,
+ "start_time":"09:00","end_time":"10:30",
+ "first_date":"2026-11-16","last_date":null,"timezone":"Europe/Zurich"}
+
+PATCH /api/productivity/lectures/{id}
+DELETE /api/productivity/lectures/{id}
+PATCH /api/productivity/lectures/{id}/attendance
+{"date":"2026-11-16","status":"attended"}
+
+POST /api/timer/stop
+{"complete_task":true}
+```
+
+Dates are YYYY-MM-DD; weeks start Monday, weekdays are 0=Monday...6=Sunday.
+A lecture ends in its declared timezone; attendance can only be saved afterward.
+`complete_task` defaults to false for backward compatibility. For the underlying
+peer-reviewed evidence and limitations, see [PSYCHOLOGY.md](PSYCHOLOGY.md).
+
 ## Persistence and API
 
 `PATCH /api/productivity/daily-plan`:
