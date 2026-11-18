@@ -4,6 +4,8 @@
 
 **Free · open source · Python 3.10+ · vanilla JavaScript · no database server or subscription.** The application runs on your computer; its JSON data can live inside a private Polybox/Nextcloud sync folder.
 
+**Productivity workflow:** [Daily priorities, next actions, focus and weekly review](docs/PRODUCTIVITY.md)
+
 **Docs:** [English](README.md) · [Deutsch](README.de.md) · [Agent instructions (EN)](AGENTS.md) · [Agent instructions (DE)](AGENTS.de.md) · [API](docs/API.md) · [Import format](docs/IMPORT.md) · [Exercise reviews](docs/EXERCISE_REVIEW.md) · [Performance](docs/PERFORMANCE.md)
 
 > **Screenshots:** All screenshots below come from **demonstration profiles**, not real student accounts. Some show earlier UI iterations (including German labels) and may look slightly different from the latest review and import workflows. They illustrate real application features; the current behavior is described in the text. See the [screenshot gallery](#screenshot-gallery--20-views) for all 20 illustrated views.
