@@ -126,9 +126,19 @@
       if(action==='stop' && !(await saveResume(true)))return;
       await timerAction(action);
       renderFocus();
+      if(state?.active_timer)$p('#productivity-focus-actions button')?.focus();
     });
     document.addEventListener('keydown',e=>{
-      if(e.key==='Escape' && !$p('#productivity-focus-overlay').hidden)closeFocus();
+      const overlay=$p('#productivity-focus-overlay');
+      if(!overlay||overlay.hidden)return;
+      if(e.key==='Escape'){e.preventDefault();closeFocus();return}
+      if(e.key==='Tab'){
+        const items=[...overlay.querySelectorAll('button:not([disabled]):not([hidden]),textarea:not([disabled])')];
+        const first=items[0],last=items[items.length-1];
+        if(!first)return;
+        if(e.shiftKey && document.activeElement===first){e.preventDefault();last.focus()}
+        else if(!e.shiftKey && document.activeElement===last){e.preventDefault();first.focus()}
+      }
     });
     shellReady=true;
   }
