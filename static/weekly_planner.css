@@ -44,3 +44,15 @@
 @media(max-width:1350px){.weekly-days{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:850px){.weekly-days{grid-template-columns:repeat(2,minmax(0,1fr))}.weekly-lecture-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:540px){.weekly-days,.weekly-lecture-form{grid-template-columns:1fr}.weekly-attendance-row{align-items:stretch;flex-direction:column}.weekly-day{min-height:unset}.weekly-goals,.weekly-lecture-settings,.weekly-attendance-box{padding:16px}}
+
+.weekly-lecture-confirm{margin-top:8px}
+.weekly-lecture-confirm summary{font-size:11px;cursor:pointer;color:var(--primary);font-weight:700}
+.weekly-lecture-confirm .weekly-attendance-actions{margin-top:8px;display:grid;grid-template-columns:1fr;gap:4px}
+.weekly-lecture-confirm .btn{font-size:11px;padding:6px;text-align:center}
+.productivity-next-modal{text-align:center;display:grid;gap:12px}
+.productivity-next-modal .accomplishment-check{margin:auto}
+.productivity-next-modal h2{font-size:22px;margin:6px}
+.productivity-next-actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.productivity-suggested{padding:14px;background:var(--bg);border:1px solid var(--line);border-radius:12px;text-align:left}
+.productivity-suggested p{margin:8px 0;font-size:16px;font-weight:700}
+.productivity-suggested small{color:var(--muted)}
