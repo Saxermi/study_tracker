@@ -299,6 +299,8 @@ def weekly_plan_fields(state, week, value):
     for sid, minutes in raw_subjects.items():
         if not isinstance(sid, str) or sid not in known_subjects:
             err("Unbekanntes Fach im Wochenbudget.")
+        if isinstance(minutes, bool):
+            err("Lernzeitbudget muss eine Zahl sein.")
         if minutes is None or minutes == "" or minutes == 0:
             continue
         subject_minutes[sid] = number(minutes, "Lernzeitbudget", 1, 10080)
