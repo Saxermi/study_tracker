@@ -1,0 +1,46 @@
+/* Weekly planner, in-app lecture confirmation and progress feedback. */
+.weekly-header,.accomplishments-intro{padding:22px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.weekly-header strong{font-size:22px;color:var(--ink)}
+.weekly-header p,.weekly-lecture-settings p{max-width:740px;margin-top:6px}
+.weekly-nav,.accomplishment-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.weekly-goals,.weekly-lecture-settings{padding:22px;margin-bottom:20px}
+.weekly-goals h3,.weekly-lecture-settings h3{margin:0 0 13px;font-size:19px}
+.weekly-goals h3 small{font-size:12px;font-weight:500;color:var(--muted)}
+.weekly-goal-items{display:grid;gap:8px;margin-bottom:12px}
+.weekly-goal-item,.weekly-lecture-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid var(--line);border-radius:10px}
+.weekly-inline{display:flex;gap:8px;align-items:flex-end;margin-top:9px}
+.weekly-inline label,.weekly-lecture-form label{min-width:0;flex:1;display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:700;color:var(--ink)}
+.weekly-inline select,.weekly-lecture-form input,.weekly-lecture-form select{width:100%;min-width:0;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:9px;font:inherit;font-size:13px}
+.weekly-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;margin-bottom:20px}
+.weekly-day{padding:14px;min-height:175px;min-width:0}
+.weekly-day-head{display:flex;flex-direction:column;gap:3px;margin-bottom:12px}
+.weekly-day-head h3{font-size:17px;margin:0}
+.weekly-day-head small{font-size:12px;color:var(--muted);font-weight:500}
+.weekly-day-events{display:grid;gap:6px}
+.weekly-lecture,.weekly-task{font-size:12px;border-radius:8px;padding:9px;overflow-wrap:anywhere}
+.weekly-lecture{background:rgba(26,165,154,.09);border-left:3px solid #1aa59a}
+.weekly-task{background:var(--bg);border:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:4px}
+.weekly-lecture strong{font-size:11px;display:block}
+.weekly-lecture small,.weekly-lecture-row small{display:block;color:var(--muted);margin-top:4px}
+.weekly-status{font-size:10px;font-weight:700;color:var(--primary);display:block;margin-top:4px}
+.weekly-remove{background:none;border:0;color:var(--muted);font-size:17px;cursor:pointer}
+.weekly-finished{color:var(--muted);text-decoration:line-through}
+.weekly-add-form{align-items:end}
+.weekly-add-form button{padding:8px 12px;flex:none}
+.weekly-lecture-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:end;gap:12px;margin-top:15px}
+.weekly-lecture-form button{min-height:39px}
+.weekly-lecture-list{display:grid;gap:8px;margin-top:16px}
+.weekly-attendance-box{padding:22px;margin-bottom:20px;border-color:var(--primary)}
+.weekly-attendance-box>div:first-child{margin-bottom:12px}
+.weekly-attendance-row{display:flex;align-items:center;justify-content:space-between;gap:16px;border-top:1px solid var(--line);padding:12px 0}
+.weekly-attendance-row small{display:block;color:var(--muted);margin-top:4px}
+.weekly-attendance-actions{display:flex;gap:5px;flex-wrap:wrap}
+.accomplishments-intro h3{font-size:24px;margin:6px 0}
+.accomplishment-list{display:grid;gap:10px}
+.accomplishment-card{display:flex;gap:14px;align-items:start;padding:18px}
+.accomplishment-card strong{font-size:15px;line-height:1.5}
+.accomplishment-check{background:rgba(26,165,154,.12);color:#1aa59a;border-radius:50%;height:35px;width:35px;display:grid;place-items:center;font-weight:800;flex:none}
+.accomplishment-meta{font-size:12px;color:var(--muted);margin-top:5px}
+@media(max-width:1350px){.weekly-days{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:850px){.weekly-days{grid-template-columns:repeat(2,minmax(0,1fr))}.weekly-lecture-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:540px){.weekly-days,.weekly-lecture-form{grid-template-columns:1fr}.weekly-attendance-row{align-items:stretch;flex-direction:column}.weekly-day{min-height:unset}.weekly-goals,.weekly-lecture-settings,.weekly-attendance-box{padding:16px}}
