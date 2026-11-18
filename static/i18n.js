@@ -266,7 +266,7 @@ const patterns = [
  [/^Priorität ([123])$/,m=>`Priority ${m[1]}`],
  [/^([0-9]+) von ([0-9]+) Prioritäten erledigt$/,m=>`${m[1]} of ${m[2]} priorities completed`],
  [/^Nächster Schritt: (.+)$/,m=>`Next action: ${m[1]}`],
- [/^([0-9]+) Min\\. geschätzt( · ([0-9]+) ohne Schätzung)?( · Kapazität ([0-9]+) Min\\.)?( · Überplant: ([0-9]+) Min\\.)?$/,m=>`${m[1]} min estimated`+(m[3]?` · ${m[3]} without estimate`:'')+(m[5]?` · Capacity ${m[5]} min`:'')+(m[7]?` · Overbooked by ${m[7]} min`:'')],
+ [/^([0-9]+) Min\. geschätzt( · ([0-9]+) ohne Schätzung)?( · Kapazität ([0-9]+) Min\.)?( · Überplant: ([0-9]+) Min\.)?$/,m=>`${m[1]} min estimated`+(m[3]?` · ${m[3]} without estimate`:'')+(m[5]?` · Capacity ${m[5]} min`:'')+(m[7]?` · Overbooked by ${m[7]} min`:'')],
 
  [/^([0-9]+) \/ ([0-9]+) Teilaufgaben erledigt$/,m=>`${m[1]} / ${m[2]} subtasks completed`],
  [/^([0-9.,]+ (?:h|min)) (?:geschätzt|geplant)$/,m=>`${m[1]} estimated`],
