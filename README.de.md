@@ -3,7 +3,8 @@
 **Kostenloser, lokal laufender Lerntracker für Ubuntu/Linux** mit Kanban, eigenständigen Unteraufgaben, Zeitmessung, Pausenprotokoll und Soll-Ist-Analysen. Die Daten können in deinem privaten Polybox-/Nextcloud-Synchronisationsordner liegen. Kein Abonnement, kein Datenbankserver, keine zusätzlichen Python-Pakete.
 
 **Sprachen:** [Deutsch](README.de.md) · [English](README.md)  
-**Agent-Anleitungen:** [Deutsch](AGENTS.de.md) · [English](AGENTS.md)
+**Agent-Anleitungen:** [Deutsch](AGENTS.de.md) · [English](AGENTS.md)  
+**Produktivitätsfunktionen:** [Wochenplanung, Vorlesungen, Fokus & Erfolge](docs/PRODUCTIVITY.md) · [Wissenschaftliche Studien & Grenzen](docs/PSYCHOLOGY.md)
 
 ![StudyTracker Übersicht mit heutigen Lernzeiten](docs/screenshots/v4/01-Overview-Today.png)
 

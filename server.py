@@ -23,6 +23,7 @@ import time
 import uuid
 import webbrowser
 from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from http import HTTPStatus
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -227,7 +228,69 @@ def accounts():
 
 def empty_productivity():
     """Optional execution-planning data, separate from legacy Today pins."""
-    return {"daily_plans": {}, "weekly_reviews": {}}
+    return {"daily_plans": {}, "weekly_reviews": {}, "weekly_plans": {}, "lectures": []}
+
+
+def clock_time(value):
+    if not isinstance(value, str) or not re.fullmatch(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]", value):
+        err("Uhrzeit muss HH:MM sein.")
+    return value
+
+
+def lecture_fields(state, body, existing=None):
+    if not isinstance(body, dict):
+        err("Vorlesung muss ein Objekt sein.")
+    current = existing or {}
+    sid = txt(body.get("subject_id", current.get("subject_id", "")), "Fach-ID", 80, True)
+    subject(state, sid)
+    title = txt(body.get("title", current.get("title", "")), "Vorlesungstitel", 140, True)
+    weekday = number(body.get("weekday", current.get("weekday")), "Wochentag", 0, 6)
+    start = clock_time(body.get("start_time", current.get("start_time")))
+    end = clock_time(body.get("end_time", current.get("end_time")))
+    if end <= start:
+        err("Vorlesung muss am selben Tag nach ihrem Beginn enden.")
+    first = due(body.get("first_date", current.get("first_date")))
+    last = due(body.get("last_date", current.get("last_date")))
+    if not first or (last and last < first):
+        err("Ungültiger Zeitraum der Vorlesung.")
+    tz = txt(body.get("timezone", current.get("timezone", "UTC")), "Zeitzone", 80, True)
+    try:
+        ZoneInfo(tz)
+    except (ZoneInfoNotFoundError, ValueError, KeyError):
+        err("Unbekannte Zeitzone.")
+    attendance = body.get("attendance", current.get("attendance", {}))
+    if not isinstance(attendance, dict) or len(attendance) > 350:
+        err("Ungültige Anwesenheitsliste.")
+    clean = {}
+    for day, status in attendance.items():
+        if due(day) != day or date.fromisoformat(day).weekday() != weekday or day < first or (last and day > last):
+            err("Anwesenheit liegt außerhalb des Vorlesungsplans.")
+        if status not in ("attended", "missed", "excused"):
+            err("Ungültiger Anwesenheitsstatus.")
+        clean[day] = status
+    return {"title": title, "subject_id": sid, "weekday": weekday,
+            "start_time": start, "end_time": end, "first_date": first,
+            "last_date": last, "timezone": tz, "attendance": clean}
+
+
+def weekly_plan_fields(state, week, value):
+    if not week or date.fromisoformat(week).weekday() != 0 or not isinstance(value, dict):
+        err("Ungültiger Wochenbeginn oder Wochenplan.")
+    days = value.get("days", {})
+    outcomes = value.get("outcome_ids", [])
+    known = {t["id"] for t in state["tasks"]}
+    if not isinstance(days, dict) or len(days) > 7:
+        err("Ein Wochenplan umfasst maximal sieben Tage.")
+    cleaned = {}
+    for day, ids in days.items():
+        if due(day) != day or not (date.fromisoformat(week) <= date.fromisoformat(day) < date.fromisoformat(week)+timedelta(days=7)):
+            err("Geplanter Tag liegt außerhalb der Woche.")
+        if not isinstance(ids, list) or len(ids) > 30 or any(not isinstance(x, str) or x not in known for x in ids) or len(set(ids)) != len(ids):
+            err("Ungültige Aufgaben im Wochenplan.")
+        cleaned[day] = ids
+    if not isinstance(outcomes, list) or len(outcomes) > 3 or any(not isinstance(x, str) or x not in known for x in outcomes) or len(set(outcomes)) != len(outcomes):
+        err("Bis zu drei unterschiedliche Wochenziele auswählen.")
+    return {"days": cleaned, "outcome_ids": outcomes}
 
 
 def validate_productivity(value, state):
@@ -237,7 +300,10 @@ def validate_productivity(value, state):
     if not isinstance(value, dict):
         err("Produktivitätsdaten müssen ein Objekt sein.")
     raw_days, raw_weeks = value.get("daily_plans", {}), value.get("weekly_reviews", {})
-    if not isinstance(raw_days, dict) or len(raw_days) > 1000 or not isinstance(raw_weeks, dict) or len(raw_weeks) > 200:
+    raw_plans, raw_lectures = value.get("weekly_plans", {}), value.get("lectures", [])
+    if (not isinstance(raw_days, dict) or len(raw_days) > 1000 or not isinstance(raw_weeks, dict) or len(raw_weeks) > 200
+            or not isinstance(raw_plans, dict) or len(raw_plans) > 260
+            or not isinstance(raw_lectures, list) or len(raw_lectures) > 100):
         err("Zu viele oder ungültige Planungseinträge.")
     days, weeks = {}, {}
     known = {t["id"] for t in state.get("tasks", [])}
@@ -255,7 +321,17 @@ def validate_productivity(value, state):
             err("Ungültiger Wochenreview.")
         weeks[week] = {key: txt(review.get(key, ""), key, limit) for key, limit in
                        (("worked", 1000), ("obstacle", 1000), ("adjustment", 1000), ("if_then", 400))}
-    return {"daily_plans": days, "weekly_reviews": weeks}
+    plans = {week: weekly_plan_fields(state, due(week), plan) for week, plan in raw_plans.items()}
+    lectures, ids = [], set()
+    for raw in raw_lectures:
+        if not isinstance(raw, dict):
+            err("Ungültige Vorlesung.")
+        ident = txt(raw.get("id", ""), "Vorlesungs-ID", 80, True)
+        if ident in ids:
+            err("Doppelte Vorlesungs-ID.")
+        ids.add(ident)
+        lectures.append({"id": ident, **lecture_fields(state, raw)})
+    return {"daily_plans": days, "weekly_reviews": weeks, "weekly_plans": plans, "lectures": lectures}
 
 
 def blank_profile():
@@ -307,6 +383,8 @@ def load_profile(user_id: str):
     data.setdefault("settings", {}).setdefault("weekly_goal_minutes", None)
     data["settings"].setdefault("focus_mode_enabled", True)
     data.setdefault("productivity", empty_productivity())
+    data["productivity"].setdefault("weekly_plans", {})
+    data["productivity"].setdefault("lectures", [])
     for sub in data.get("subjects", []):
         sub.setdefault("semester_id", None)
         sub.setdefault("weekly_goal_minutes", None)
@@ -777,6 +855,51 @@ def mutate(user_id, method, path, body):
             reviews[week] = validated["weekly_reviews"][week]
             for old in sorted(reviews)[:-104]:
                 reviews.pop(old, None)
+        elif path == "/api/productivity/weekly-plan" and method == "PATCH":
+            week = due(body.get("week_start"))
+            plan = weekly_plan_fields(s, week, body)
+            plans = s["productivity"]["weekly_plans"]
+            plans[week] = plan
+            for old in sorted(plans)[:-156]:
+                plans.pop(old, None)
+        elif path == "/api/productivity/lectures" and method == "POST":
+            if len(s["productivity"]["lectures"]) >= 100:
+                err("Maximal 100 wiederkehrende Vorlesungen.")
+            fields = lecture_fields(s, body)
+            ident = uid()
+            s["productivity"]["lectures"].append({"id": ident, **fields})
+            message["lecture_id"] = ident
+        elif len(parts) == 4 and parts[1:3] == ["productivity", "lectures"] and method == "PATCH":
+            lecture = next((x for x in s["productivity"]["lectures"] if x["id"] == parts[3]), None)
+            if lecture is None:
+                err("Vorlesung nicht gefunden.", 404)
+            lecture.update(lecture_fields(s, body, lecture))
+        elif len(parts) == 4 and parts[1:3] == ["productivity", "lectures"] and method == "DELETE":
+            before = len(s["productivity"]["lectures"])
+            s["productivity"]["lectures"] = [x for x in s["productivity"]["lectures"] if x["id"] != parts[3]]
+            if len(s["productivity"]["lectures"]) == before:
+                err("Vorlesung nicht gefunden.", 404)
+        elif len(parts) == 5 and parts[1:3] == ["productivity", "lectures"] and parts[4] == "attendance" and method == "PATCH":
+            lecture = next((x for x in s["productivity"]["lectures"] if x["id"] == parts[3]), None)
+            if lecture is None:
+                err("Vorlesung nicht gefunden.", 404)
+            day = due(body.get("date"))
+            if not day or date.fromisoformat(day).weekday() != lecture["weekday"] or day < lecture["first_date"] or (lecture["last_date"] and day > lecture["last_date"]):
+                err("Keine geplante Vorlesung an diesem Tag.")
+            # Mark attendance only after the lecture ended in its declared timezone.
+            end = datetime.combine(date.fromisoformat(day),
+                                   datetime.strptime(lecture["end_time"], "%H:%M").time(),
+                                   ZoneInfo(lecture["timezone"]))
+            if end.astimezone(timezone.utc) > now():
+                err("Anwesenheit kann erst nach der Vorlesung bestätigt werden.")
+            status = body.get("status")
+            if status not in ("attended", "missed", "excused"):
+                err("Ungültiger Anwesenheitsstatus.")
+            attendance = lecture["attendance"]
+            attendance[day] = status
+            if len(attendance) > 350:
+                for old in sorted(attendance)[:-350]:
+                    attendance.pop(old, None)
         elif path == "/api/tasks" and method == "POST":
             taskrow = {"id": uid(), **task_fields(s, body), "external_id": None, "created_at": iso(), "updated_at": iso(), "completed_at": None, "exercise_review": None}
             if taskrow["status"] == "done":
@@ -835,6 +958,10 @@ def mutate(user_id, method, path, body):
             s["tasks"] = [t for t in s["tasks"] if t["id"] != row["id"]]
             for plan in s["productivity"]["daily_plans"].values():
                 plan["priority_ids"] = [i for i in plan["priority_ids"] if i != row["id"]]
+            for weekplan in s["productivity"]["weekly_plans"].values():
+                weekplan["outcome_ids"] = [i for i in weekplan["outcome_ids"] if i != row["id"]]
+                for day, task_ids in weekplan["days"].items():
+                    weekplan["days"][day] = [i for i in task_ids if i != row["id"]]
             reconcile_parent(s, old_parent)
         elif path == "/api/timer/start" and method == "POST":
             if s["active_timer"]:
@@ -882,6 +1009,11 @@ def mutate(user_id, method, path, body):
                 timer_switch(t, "paused")
             if t["focus_seconds"] < 1:
                 err("Mindestens eine Sekunde Fokuszeit nötig.")
+            finish_task = body.get("complete_task", False)
+            if not isinstance(finish_task, bool):
+                err("Aufgabenabschluss muss ein Wahrheitswert sein.")
+            if finish_task and not t.get("task_id"):
+                err("Zum Abschließen muss der Timer mit einer Aufgabe verknüpft sein.")
             begun = timestamp(t["first_started_at"])
             s["sessions"].append({"id": uid(), "subject_id": t["subject_id"], "task_id": t["task_id"],
                                   "title": t["title"], "notes": t.get("notes", ""), "tags": t["tags"],
@@ -890,6 +1022,10 @@ def mutate(user_id, method, path, body):
                                   "duration_seconds": t["focus_seconds"], "break_seconds": t["break_seconds"], "breaks": t["breaks"],
                                   "focus_intervals": t.get("focus_intervals", []),
                                   "source": "timer", "created_at": iso()})
+            if finish_task:
+                row = task(s, t["task_id"])
+                update_task_status(s, row, "done")
+                message["completed_task_id"] = row["id"]
             s["active_timer"] = None
         elif path == "/api/timer/discard" and method == "POST":
             if not s["active_timer"]:
@@ -1182,7 +1318,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.raw_response(200, body, mime, {"Content-Disposition": f'attachment; filename="{name}"'})
             if route.path in ("/", "/index.html"):
                 path, mime = STATIC / "index.html", "text/html; charset=utf-8"
-            elif route.path in ("/app.js", "/app.css", "/features.css", "/i18n.js", "/time_analysis.js", "/exercise_review_import.js", "/import_wizard.js", "/rich_feedback.js", "/feedback_insights.js", "/productivity.js", "/productivity.css", "/favicon.svg"):
+            elif route.path in ("/app.js", "/app.css", "/features.css", "/i18n.js", "/time_analysis.js", "/exercise_review_import.js", "/import_wizard.js", "/rich_feedback.js", "/feedback_insights.js", "/productivity.js", "/productivity.css", "/weekly_planner.js", "/weekly_planner.css", "/favicon.svg"):
                 path = STATIC / route.path.lstrip("/")
                 mime = {".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml"}[path.suffix]
             else:

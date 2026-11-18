@@ -76,6 +76,21 @@
       <small class="inside-hint">Die Notiz erscheint beim nächsten Start dieser Aufgabe. Die Ansicht kannst du ohne Timer-Stopp verlassen.</small>
     </div>`;
     document.body.appendChild(focus);
+    const completed=document.createElement('dialog');
+    completed.id='productivity-next-dialog';
+    completed.className='productivity-review-dialog';
+    completed.innerHTML='<div class="productivity-next-modal"><div class="accomplishment-check">✓</div><h2>Aufgabe abgeschlossen!</h2><p class="inside-hint">Deine Fokuszeit ist gespeichert und die Aufgabe ist auf Erledigt gesetzt.</p><div id="productivity-next-suggestion"></div><div class="productivity-next-actions"><button type="button" class="btn primary" id="productivity-next-start">Nächste Aufgabe starten</button><button type="button" class="btn outline" id="productivity-next-done">Erfolge ansehen</button><button type="button" class="btn outline" id="productivity-next-dismiss">Schließen</button></div></div>';
+    document.body.appendChild(completed);
+    completed.addEventListener('click',e=>{
+      const id=e.target.id;
+      if(id==='productivity-next-dismiss'){completed.close();return;}
+      if(id==='productivity-next-done'){completed.close();showPage('done');return;}
+      if(id==='productivity-next-start'){
+        const taskId=completed.dataset.suggested;
+        completed.close();
+        if(taskId)timerAction('start',taskId);
+      }
+    });
     const reopen=document.createElement('button');
     reopen.type='button';
     reopen.id='productivity-focus-reopen';
@@ -123,8 +138,16 @@
       const button=e.target.closest('[data-productivity-timer-action]');
       if(!button)return;
       const action=button.dataset.productivityTimerAction;
-      if(action==='stop' && !(await saveResume(true)))return;
-      await timerAction(action);
+      if(action==='finish'){
+        if(!state.active_timer?.task_id){toast('Zum Abschließen muss eine Aufgabe ausgewählt sein.',true);return;}
+        if(!(await saveResume(true)))return;
+        const finishedId=state.active_timer.task_id;
+        const stopped=await mutate('/api/timer/stop','POST',{complete_task:true});
+        if(stopped){toast('Aufgabe abgeschlossen und Session gespeichert.');showNextSuggestion(finishedId);}
+      }else{
+        if(action==='stop' && !(await saveResume(true)))return;
+        await timerAction(action);
+      }
       renderFocus();
       if(state?.active_timer)$p('#productivity-focus-actions button')?.focus();
     });
@@ -229,13 +252,35 @@
     $p('#productivity-resume-note').value=draftNote;
     $p('#productivity-resume-note').disabled=!task;
     $p('#productivity-resume-save').disabled=!task;
-    const actions = a.mode==='focus'?[['pause','Unterbrechen'],['break-start','Pause'],['stop','Session speichern']]:
-      a.mode==='break'?[['break-end','Pause beenden'],['stop','Session speichern']]:
-      [['resume','Fortsetzen'],['stop','Session speichern']];
+    const actions = a.mode==='focus'?[['pause','Unterbrechen'],['break-start','Pause'],['stop','Nur Session speichern'],['finish','Aufgabe fertig + speichern'],['discard','Timer verwerfen']]:
+      a.mode==='break'?[['break-end','Pause beenden'],['stop','Nur Session speichern'],['finish','Aufgabe fertig + speichern'],['discard','Timer verwerfen']]:
+      [['resume','Fortsetzen'],['stop','Nur Session speichern'],['finish','Aufgabe fertig + speichern'],['discard','Timer verwerfen']];
     $p('#productivity-focus-actions').innerHTML=actions.map(([action,label])=>
-      '<button class="btn '+(action==='stop'?'outline':'primary')+'" type="button" data-productivity-timer-action="'+action+'">'+label+'</button>').join('');
+      '<button class="btn '+(action==='finish'?'primary':'outline')+'" type="button" data-productivity-timer-action="'+action+'" '+((action==='finish'&&!task)?'disabled':'')+'>'+label+'</button>').join('');
     $p('#productivity-focus-status').textContent={focus:'Fokus läuft',break:'Pause läuft',paused:'Unterbrochen'}[a.mode]||'';
     updateProductivityClock();
+  }
+  function suggestedNextTask(excludedId){
+    const today=localDay(new Date()),week=weekMonday(new Date());
+    const dayPriority=state.productivity?.daily_plans?.[today]?.priority_ids||[];
+    const weekPriority=state.productivity?.weekly_plans?.[week]?.outcome_ids||[];
+    const ready=state.tasks.filter(t=>t.id!==excludedId&&t.status!=='done'&&!subject(t.subject_id)?.archived);
+    ready.sort((a,b)=>{
+      const rank=t=>dayPriority.includes(t.id)?0:weekPriority.includes(t.id)?1:
+        (t.planned_for&&t.planned_for<=today)?2:t.status==='doing'?3:t.priority==='high'?4:5;
+      return rank(a)-rank(b)||(a.due_date||'9999').localeCompare(b.due_date||'9999')||a.title.localeCompare(b.title);
+    });
+    return ready[0]||null;
+  }
+  function showNextSuggestion(completedId){
+    const dialog=$p('#productivity-next-dialog'),candidate=suggestedNextTask(completedId);
+    dialog.dataset.suggested=candidate?.id||'';
+    $p('#productivity-next-suggestion').innerHTML=candidate?
+      '<div class="productivity-suggested"><strong>Vorschlag für deine nächste Aufgabe</strong><p>'+safe(candidate.title)+'</p>'+
+      (candidate.next_action?'<small>→ '+safe(candidate.next_action)+'</small>':'')+'</div>':
+      '<p class="inside-hint">Keine weitere offene Aufgabe vorhanden. Gute Arbeit!</p>';
+    $p('#productivity-next-start').hidden=!candidate;
+    dialog.showModal();
   }
   function updateProductivityClock(){
     if(shellReady && state && displayedDay!==localDay(new Date()))renderProductivity();

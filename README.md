@@ -4,7 +4,7 @@
 
 **Free · open source · Python 3.10+ · vanilla JavaScript · no database server or subscription.** The application runs on your computer; its JSON data can live inside a private Polybox/Nextcloud sync folder.
 
-**Productivity workflow:** [Daily priorities, next actions, focus and weekly review](docs/PRODUCTIVITY.md)
+**Productivity workflow:** [Daily priorities, focus, weekly plans, recurring lectures and accomplishments](docs/PRODUCTIVITY.md) · [Peer-reviewed psychology evidence and limitations](docs/PSYCHOLOGY.md)
 
 **Docs:** [English](README.md) · [Deutsch](README.de.md) · [Agent instructions (EN)](AGENTS.md) · [Agent instructions (DE)](AGENTS.de.md) · [API](docs/API.md) · [Import format](docs/IMPORT.md) · [Exercise reviews](docs/EXERCISE_REVIEW.md) · [Performance](docs/PERFORMANCE.md)
 
