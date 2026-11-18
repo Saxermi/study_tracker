@@ -54,3 +54,7 @@ Authenticated `GET /api/profile/revision` returns a small opaque string `revisio
 ## Import assistant ID fields (v4.4)
 
 `POST /api/import/tasks` accepts optional `subject_id` instead of `subject`; IDs must exist in the authenticated profile. If both are supplied, they must refer to the same subject, and an optional `semester` must match its assignment. `parent_id` attaches a new child to an existing root task in the same subject; for newly created parent tasks use `parent_external_id`. Both parent keys together are invalid. Invalid IDs reject the entire batch atomically. The envelope remains `studytracker.tasks.v1`.
+
+## Optional execution productivity workflow
+
+The privacy-first execution features (Daily Top 3, time capacity, task next action, Focus Mode, resume note, and weekly review) are documented in [PRODUCTIVITY.md](PRODUCTIVITY.md). API additions: `PATCH /api/productivity/daily-plan` for local-date plans and `PATCH /api/productivity/weekly-review` for Monday-keyed reviews, `next_action` and `resume_note` in task patches, and `focus_mode_enabled` in settings patches. All are optional and retained in version-2 JSON backups.
