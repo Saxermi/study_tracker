@@ -56,3 +56,36 @@
 .productivity-suggested{padding:14px;background:var(--bg);border:1px solid var(--line);border-radius:12px;text-align:left}
 .productivity-suggested p{margin:8px 0;font-size:16px;font-weight:700}
 .productivity-suggested small{color:var(--muted)}
+
+/* Time-first, task-second: voluntary weekly focus budgets per subject. */
+.weekly-subject-budget,.accomplishments-effort{padding:22px;margin-bottom:20px}
+.weekly-budget-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:18px}
+.weekly-budget-heading h3{font-size:22px;margin:5px 0}
+.weekly-budget-heading p{max-width:680px}
+.weekly-budget-total{display:flex;flex-direction:column;gap:5px;min-width:130px}
+.weekly-budget-total strong{font-size:24px;font-variant-numeric:tabular-nums}
+.weekly-budget-total small,.weekly-budget-result small{color:var(--muted);font-size:12px}
+.weekly-subject-budget-rows{display:grid;gap:12px}
+.weekly-subject-budget-row{display:grid;grid-template-columns:minmax(140px,1.1fr) minmax(140px,.8fr) minmax(180px,1.2fr);gap:16px;align-items:center;padding:13px 16px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.weekly-budget-name{display:flex;align-items:center;gap:9px;font-size:14px;min-width:0;overflow-wrap:anywhere}
+.weekly-color-dot{height:11px;width:11px;border-radius:100%;flex:none}
+.weekly-subject-budget-row label{display:grid;gap:4px;font-size:12px;color:var(--muted)}
+.weekly-subject-budget-row input{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px;width:100%;font:inherit;font-size:14px}
+.weekly-budget-result{display:grid;gap:4px}
+.weekly-budget-result strong{font-size:13px;font-variant-numeric:tabular-nums}
+.weekly-budget-progress{height:7px;border-radius:6px;background:var(--line);overflow:hidden}
+.weekly-budget-progress>div{height:100%;border-radius:6px;min-width:0;transition:width .2s}
+.weekly-plan-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:16px}
+.weekly-plan-actions small{flex-basis:100%}
+.weekly-today-budget{padding:18px 22px;display:flex;gap:20px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:18px}
+.weekly-today-budget h3{font-size:20px;margin:5px 0}
+.weekly-today-budget-list{display:flex;gap:8px;flex-wrap:wrap}
+.weekly-today-budget-chip{display:inline-flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--line);padding:8px 10px;border-radius:20px;font-size:12px}
+.weekly-today-budget-chip i{width:8px;height:8px;border-radius:100%}
+.accomplishments-effort h3{font-size:23px;margin:8px 0}
+.accomplishments-effort-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-top:16px}
+.accomplishments-effort-row{background:var(--bg);padding:12px 14px;border-radius:10px;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.accomplishments-effort-row strong{font-variant-numeric:tabular-nums}
+@media(max-width:820px){.weekly-subject-budget-row{grid-template-columns:minmax(120px,1fr) minmax(100px,1fr)}.weekly-budget-result{grid-column:1/-1}}
+@media(max-width:520px){.weekly-subject-budget-row{grid-template-columns:1fr}.weekly-budget-result{grid-column:auto}.weekly-subject-budget,.accomplishments-effort{padding:16px}}
+@media(prefers-reduced-motion:reduce){.weekly-budget-progress>div{transition:none}}
