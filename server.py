@@ -225,6 +225,39 @@ def accounts():
     return data
 
 
+def empty_productivity():
+    """Optional execution-planning data, separate from legacy Today pins."""
+    return {"daily_plans": {}, "weekly_reviews": {}}
+
+
+def validate_productivity(value, state):
+    """Validate persisted daily plans and weekly reflections (including backups)."""
+    if value is None:
+        return empty_productivity()
+    if not isinstance(value, dict):
+        err("Produktivitätsdaten müssen ein Objekt sein.")
+    raw_days, raw_weeks = value.get("daily_plans", {}), value.get("weekly_reviews", {})
+    if not isinstance(raw_days, dict) or len(raw_days) > 1000 or not isinstance(raw_weeks, dict) or len(raw_weeks) > 200:
+        err("Zu viele oder ungültige Planungseinträge.")
+    days, weeks = {}, {}
+    known = {t["id"] for t in state.get("tasks", [])}
+    for day, plan in raw_days.items():
+        if due(day) != day or not isinstance(plan, dict):
+            err("Ungültiger Tagesplan.")
+        ids = plan.get("priority_ids", [])
+        if not isinstance(ids, list) or len(ids) > 3 or any(not isinstance(x, str) or x not in known for x in ids) or len(set(ids)) != len(ids):
+            err("Tagesprioritäten müssen unterschiedliche bestehende Aufgaben sein (max. 3).")
+        cap = plan.get("capacity_minutes")
+        capacity = None if cap is None or cap == "" else number(cap, "Tageskapazität", 1, 1440)
+        days[day] = {"priority_ids": ids, "capacity_minutes": capacity}
+    for week, review in raw_weeks.items():
+        if due(week) != week or date.fromisoformat(week).weekday() != 0 or not isinstance(review, dict):
+            err("Ungültiger Wochenreview.")
+        weeks[week] = {key: txt(review.get(key, ""), key, limit) for key, limit in
+                       (("worked", 1000), ("obstacle", 1000), ("adjustment", 1000), ("if_then", 400))}
+    return {"daily_plans": days, "weekly_reviews": weeks}
+
+
 def blank_profile():
     return {"version": 2, "subjects": [
         {"id": "mathe", "name": "Mathematik", "color": COLORS[0], "weekly_goal_minutes": None, "semester_id": None, "archived": False},
@@ -237,7 +270,7 @@ def blank_profile():
         {"id": "pruefung", "name": "Prüfung", "color": COLORS[4]},
         {"id": "vorlesung", "name": "Vorlesung", "color": COLORS[3]},
         {"id": "videos", "name": "Videos", "color": COLORS[5]},
-    ], "semesters": [], "tasks": [], "sessions": [], "active_timer": None, "settings": {"weekly_goal_minutes": None, "v4_default_categories_initialized": True}, "imports": []}
+    ], "semesters": [], "tasks": [], "sessions": [], "active_timer": None, "settings": {"weekly_goal_minutes": None, "v4_default_categories_initialized": True, "focus_mode_enabled": True}, "productivity": empty_productivity(), "imports": []}
 
 
 def migrate_v1_if_needed() -> dict:
@@ -272,6 +305,8 @@ def load_profile(user_id: str):
     # Non-destructive migration for existing v2 accounts and JSON files.
     data.setdefault("semesters", [])
     data.setdefault("settings", {}).setdefault("weekly_goal_minutes", None)
+    data["settings"].setdefault("focus_mode_enabled", True)
+    data.setdefault("productivity", empty_productivity())
     for sub in data.get("subjects", []):
         sub.setdefault("semester_id", None)
         sub.setdefault("weekly_goal_minutes", None)
@@ -287,6 +322,8 @@ def load_profile(user_id: str):
         t.setdefault("planned_for", None)
         t.setdefault("exercise_review", None)
         t.setdefault("exercise_review_gpt", None)
+        t.setdefault("next_action", "")
+        t.setdefault("resume_note", "")
     return data
 
 
@@ -470,7 +507,9 @@ def task_fields(state, body, existing=None):
               "subject_id": sid, "planned_minutes": planned, "parent_id": parent, "status": status, "priority": priority,
               "due_date": due(body.get("due_date", existing["due_date"] if existing else None)),
               "planned_for": due(body.get("planned_for", existing.get("planned_for") if existing else None)),
-              "tags": valid_tags(state, body.get("tags", existing["tags"] if existing else []))}
+              "tags": valid_tags(state, body.get("tags", existing["tags"] if existing else [])),
+              "next_action": txt(body.get("next_action", existing.get("next_action", "") if existing else ""), "Nächster Schritt", 200),
+              "resume_note": txt(body.get("resume_note", existing.get("resume_note", "") if existing else ""), "Wiederaufnahme", 400)}
     if existing and status != existing["status"]:
         fields["completed_at"] = iso() if status == "done" else None
     return fields
@@ -709,7 +748,35 @@ def mutate(user_id, method, path, body):
                 if active_timer.get("category_tag_id") == tid:
                     active_timer["category_tag_id"] = None
         elif path == "/api/settings" and method == "PATCH":
-            s["settings"]["weekly_goal_minutes"] = optional_goal(body.get("weekly_goal_minutes"), "Wochenziel")
+            if "weekly_goal_minutes" in body:
+                s["settings"]["weekly_goal_minutes"] = optional_goal(body["weekly_goal_minutes"], "Wochenziel")
+            if "focus_mode_enabled" in body:
+                if not isinstance(body["focus_mode_enabled"], bool):
+                    err("Fokusmodus muss ein Wahrheitswert sein.")
+                s["settings"]["focus_mode_enabled"] = body["focus_mode_enabled"]
+        elif path == "/api/productivity/daily-plan" and method == "PATCH":
+            day = due(body.get("date"))
+            if not day:
+                err("Tagesplan benötigt ein Datum.")
+            plans = s["productivity"]["daily_plans"]
+            previous = plans.get(day, {})
+            ids = body.get("priority_ids", previous.get("priority_ids", []))
+            cap = body.get("capacity_minutes", previous.get("capacity_minutes"))
+            validated = validate_productivity({"daily_plans": {day: {"priority_ids": ids, "capacity_minutes": cap}}}, s)
+            plans[day] = validated["daily_plans"][day]
+            for old in sorted(plans)[:-365]:
+                plans.pop(old, None)
+        elif path == "/api/productivity/weekly-review" and method == "PATCH":
+            week = due(body.get("week_start"))
+            if not week:
+                err("Wochenreview benötigt einen Wochenbeginn.")
+            previous = s["productivity"]["weekly_reviews"].get(week, {})
+            reviewed = {k: body.get(k, previous.get(k, "")) for k in ("worked", "obstacle", "adjustment", "if_then")}
+            validated = validate_productivity({"weekly_reviews": {week: reviewed}}, s)
+            reviews = s["productivity"]["weekly_reviews"]
+            reviews[week] = validated["weekly_reviews"][week]
+            for old in sorted(reviews)[:-104]:
+                reviews.pop(old, None)
         elif path == "/api/tasks" and method == "POST":
             taskrow = {"id": uid(), **task_fields(s, body), "external_id": None, "created_at": iso(), "updated_at": iso(), "completed_at": None, "exercise_review": None}
             if taskrow["status"] == "done":
@@ -766,6 +833,8 @@ def mutate(user_id, method, path, body):
                     # Deleting a parent never deletes valuable children or their sessions.
                     child["parent_id"] = None
             s["tasks"] = [t for t in s["tasks"] if t["id"] != row["id"]]
+            for plan in s["productivity"]["daily_plans"].values():
+                plan["priority_ids"] = [i for i in plan["priority_ids"] if i != row["id"]]
             reconcile_parent(s, old_parent)
         elif path == "/api/timer/start" and method == "POST":
             if s["active_timer"]:
@@ -856,7 +925,7 @@ def validate_backup(v):
     if len(v["subjects"]) > 500 or len(v["tags"]) > 500 or len(v["tasks"]) > 50000 or len(v["sessions"]) > 150000:
         err("Backup zu groß.")
     s = {"version": 2, "subjects": [], "semesters": [], "tags": [], "tasks": [], "sessions": [], "active_timer": None,
-         "settings": {"weekly_goal_minutes": None}, "imports": []}
+         "settings": {"weekly_goal_minutes": None, "focus_mode_enabled": True}, "productivity": empty_productivity(), "imports": []}
     raw_semesters = v.get("semesters", [])
     if not isinstance(raw_semesters, list) or len(raw_semesters) > 100:
         err("Ungültige Semester im Backup.")
@@ -941,6 +1010,9 @@ def validate_backup(v):
     settings = v.get("settings", {})
     if isinstance(settings, dict):
         s["settings"]["weekly_goal_minutes"] = optional_goal(settings.get("weekly_goal_minutes"), "Wochenziel")
+        if not isinstance(settings.get("focus_mode_enabled", True), bool):
+            err("Fokusmodus muss ein Wahrheitswert sein.")
+        s["settings"]["focus_mode_enabled"] = settings.get("focus_mode_enabled", True)
         s["settings"]["v4_default_categories_initialized"] = bool(settings.get("v4_default_categories_initialized", False))
     imported = v.get("imports", [])
     if isinstance(imported, list):
@@ -950,6 +1022,7 @@ def validate_backup(v):
                                      "at": timestamp(line.get("at", iso())).isoformat(timespec="seconds"),
                                      "added": number(line.get("added", 0), "Importanzahl", 0, 10000),
                                      "skipped": number(line.get("skipped", 0), "Duplikate", 0, 10000)})
+    s["productivity"] = validate_productivity(v.get("productivity"), s)
     return s
 
 
@@ -972,7 +1045,7 @@ def export_csv(state, kind):
                              f'{sr.get("break_seconds", 0)/60:.2f}'.replace(".", ","),
                              protect(" | ".join(b["started_at"]+" bis "+b["ended_at"] for b in sr.get("breaks", []))), sr["source"], protect(sr["notes"]), protect(tag_names.get(sr["category_tag_id"] if "category_tag_id" in sr else (sr.get("tags") or [None])[0], "Ohne Kategorie"))])
     elif kind == "tasks":
-        writer.writerow(["ID", "Fach", "Semester", "Titel", "Hauptaufgabe ID", "Status", "Priorität", "Fällig", "Geplant für", "Geschätzt min", "Ist min", "Abweichung min", "Abweichung %", "Tags", "Extern-ID", "Ist gesamt inkl Unteraufgaben min", "Schätzung für Auswertung min", "Abweichung für Auswertung min", "Schwierigkeit (1-5)", "Lösungserfolg", "Hauptproblem", "Gesamthilfe (0-5)", "ChatGPT-Hilfe (0-5)", "Eigene Probleme", "Eigene Stärke", "Eigene Schwäche", "Eigene Kompetenzlücke", "Eigene nächste Aktion", "Eigene GPT-Hilfearten", "GPT Schwierigkeit (1-5)", "GPT Lösungserfolg", "GPT Hauptproblem", "GPT Gesamthilfe (0-5)", "GPT ChatGPT-Hilfe (0-5)", "GPT Probleme", "GPT Stärke", "GPT Schwäche", "GPT Kompetenzlücke", "GPT nächste Aktion", "GPT Hilfearten"])
+        writer.writerow(["ID", "Fach", "Semester", "Titel", "Hauptaufgabe ID", "Status", "Priorität", "Fällig", "Geplant für", "Geschätzt min", "Ist min", "Abweichung min", "Abweichung %", "Tags", "Extern-ID", "Ist gesamt inkl Unteraufgaben min", "Schätzung für Auswertung min", "Abweichung für Auswertung min", "Schwierigkeit (1-5)", "Lösungserfolg", "Hauptproblem", "Gesamthilfe (0-5)", "ChatGPT-Hilfe (0-5)", "Eigene Probleme", "Eigene Stärke", "Eigene Schwäche", "Eigene Kompetenzlücke", "Eigene nächste Aktion", "Eigene GPT-Hilfearten", "GPT Schwierigkeit (1-5)", "GPT Lösungserfolg", "GPT Hauptproblem", "GPT Gesamthilfe (0-5)", "GPT ChatGPT-Hilfe (0-5)", "GPT Probleme", "GPT Stärke", "GPT Schwäche", "GPT Kompetenzlücke", "GPT nächste Aktion", "GPT Hilfearten", "Nächster Schritt", "Wiederaufnahme-Notiz"])
         used = {}
         for sr in state["sessions"]:
             if sr.get("task_id"):
@@ -992,7 +1065,7 @@ def export_csv(state, kind):
                              "" if full_planned is None else full_planned,
                              "" if full_planned is None else f"{full_actual-full_planned:.2f}".replace(".", ","),
                              *[(protect(" | ".join((t.get("exercise_review") or {}).get(k))) if isinstance((t.get("exercise_review") or {}).get(k), list) else protect((t.get("exercise_review") or {}).get(k)) if isinstance((t.get("exercise_review") or {}).get(k), str) else (t.get("exercise_review") or {}).get(k)) if (t.get("exercise_review") or {}).get(k) is not None else "" for k in REVIEW_KEYS],
-                             *[(protect(" | ".join((t.get("exercise_review_gpt") or {}).get(k))) if isinstance((t.get("exercise_review_gpt") or {}).get(k), list) else protect((t.get("exercise_review_gpt") or {}).get(k)) if isinstance((t.get("exercise_review_gpt") or {}).get(k), str) else (t.get("exercise_review_gpt") or {}).get(k)) if (t.get("exercise_review_gpt") or {}).get(k) is not None else "" for k in REVIEW_KEYS]])
+                             *[(protect(" | ".join((t.get("exercise_review_gpt") or {}).get(k))) if isinstance((t.get("exercise_review_gpt") or {}).get(k), list) else protect((t.get("exercise_review_gpt") or {}).get(k)) if isinstance((t.get("exercise_review_gpt") or {}).get(k), str) else (t.get("exercise_review_gpt") or {}).get(k)) if (t.get("exercise_review_gpt") or {}).get(k) is not None else "" for k in REVIEW_KEYS], protect(t.get("next_action", "")), protect(t.get("resume_note", ""))])
     else:
         err("Nur sessions und tasks als CSV verfügbar.")
     return ("\ufeff" + stream.getvalue()).encode("utf-8")
