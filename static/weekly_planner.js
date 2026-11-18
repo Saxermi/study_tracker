@@ -78,7 +78,7 @@
       '<form id="weekly-subject-budget-form"><div class="weekly-subject-budget-rows">'+budgetRows.map(r=>{
         const target=r.target||0,pct=target?Math.min(100,Math.round(r.seconds/(target*60)*100)):0;
         return '<div class="weekly-subject-budget-row"><div class="weekly-budget-name"><span class="weekly-color-dot" style="background:'+h(r.subject.color)+'"></span><strong>'+h(r.subject.name)+'</strong></div>'+
-        '<label>Stunden pro Woche <input type="number" data-subject-budget="'+h(r.subject.id)+'" min="0" max="168" step="0.25" value="'+(target?target/60:'')+'" placeholder="z. B. 4" aria-label="Geplante Stunden für '+h(r.subject.name)+'"></label>'+
+        '<label>Stunden pro Woche <input type="number" data-subject-budget="'+h(r.subject.id)+'" min="0" max="168" step="any" value="'+(target?target/60:'')+'" placeholder="z. B. 4" aria-label="Geplante Stunden für '+h(r.subject.name)+'"></label>'+
         '<div class="weekly-budget-result"><strong>'+fmtFocus(r.seconds)+' investiert</strong><small>'+(target?'von '+fmtFocus(target*60)+' geplant':'Ohne Zeitvorgabe')+'</small>'+
         '<div class="weekly-budget-progress" role="progressbar" aria-label="Zeitbudget '+h(r.subject.name)+'" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+pct+'"><div style="width:'+pct+'%;background:'+h(r.subject.color)+'"></div></div></div></div>';
       }).join('')+'</div><div class="weekly-plan-actions"><button class="btn primary" type="submit">Fachzeitbudget speichern</button>'+
