@@ -304,6 +304,7 @@ Object.assign(TRANSLATIONS, {
   "Anwesenheit bestätigen": "Confirm attendance",
   "Anwesenheit ändern": "Edit attendance",
   "Vorlesungsanwesenheit gespeichert.": "Lecture attendance saved.",
+  "Später erinnern": "Remind me later",
   "Ja": "Yes",
   "Nein": "No",
   "DEINE ERGEBNISSE": "YOUR RESULTS",
