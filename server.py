@@ -871,8 +871,10 @@ def mutate(user_id, method, path, body):
                 reviews.pop(old, None)
         elif path == "/api/productivity/weekly-plan" and method == "PATCH":
             week = due(body.get("week_start"))
-            plan = weekly_plan_fields(s, week, body)
             plans = s["productivity"]["weekly_plans"]
+            # A partial PATCH must not silently erase time budgets, days, or goals.
+            previous = plans.get(week, {})
+            plan = weekly_plan_fields(s, week, {**previous, **body})
             plans[week] = plan
             for old in sorted(plans)[:-156]:
                 plans.pop(old, None)
