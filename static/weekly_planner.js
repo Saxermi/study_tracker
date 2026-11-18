@@ -108,6 +108,21 @@
       '<button type="submit" class="btn primary">Vorlesung speichern</button></form>'+
       '<div class="weekly-lecture-list">'+lectures.map(l=>'<div class="weekly-lecture-row"><div><strong>'+h(l.title)+'</strong><small>'+dayLabels[l.weekday]+' · '+h(l.start_time)+'–'+h(l.end_time)+' · '+h(l.first_date)+(l.last_date?' bis '+h(l.last_date):'')+'</small></div><button class="btn outline" type="button" data-lecture-delete="'+h(l.id)+'">Löschen</button></div>').join('')+'</div></section>';
     renderAttendance();
+    renderTodayStudyTime();
+  }
+  function renderTodayStudyTime(){
+    const root=$w('#today-subject-study-time');
+    if(!root||!state)return;
+    const week=monday(localDate(new Date()));
+    const stats=subjectWeekStats(state.subjects,state.sessions,week,stateForWeek(week).subject_minutes||{},state.active_timer);
+    const planned=stats.rows.filter(r=>r.target!=null);
+    if(!planned.length){root.innerHTML='';root.hidden=true;return}
+    root.hidden=false;
+    root.innerHTML='<section class="panel weekly-today-budget"><div><span class="eyebrow">LERNZEIT DIESE WOCHE</span>'+
+      '<h3>'+fmtFocus(stats.seconds)+' investiert</h3><p class="inside-hint">Geplant: '+fmtFocus(stats.plannedMinutes*60)+
+      ' · Lernzeit zählt auch bei noch offenen Aufgaben.</p></div><div class="weekly-today-budget-list">'+
+      planned.map(r=>'<span class="weekly-today-budget-chip"><i style="background:'+h(r.subject.color)+'"></i>'+h(r.subject.name)+' <strong>'+fmtFocus(r.seconds)+' / '+fmtFocus(r.target*60)+'</strong></span>').join('')+
+      '</div></section>';
   }
   function renderAttendance(){
     const pending=outstandingLectures(state?.productivity||{}).filter(p=>!deferredAttendance.has(p.lecture.id+':'+p.day));
@@ -135,6 +150,12 @@
       const el=e.target.closest('button');if(!el)return;
       if(el.hasAttribute('data-week-shift')){chosenWeek=offsetDay(chosenWeek,Number(el.dataset.weekShift));renderWeeklyPlanner();return}
       if(el.hasAttribute('data-week-current')){chosenWeek=monday(localDate(new Date()));renderWeeklyPlanner();return}
+      if(el.id==='weekly-use-default-goals'){
+        const plan=structuredClone(stateForWeek(chosenWeek));
+        plan.subject_minutes??={};
+        for(const sub of state.subjects)if(!sub.archived&&sub.weekly_goal_minutes)plan.subject_minutes[sub.id]=sub.weekly_goal_minutes;
+        await patchWeek(plan);return;
+      }
       if(el.hasAttribute('data-week-goal-remove')){
         const plan=structuredClone(stateForWeek(chosenWeek));
         plan.outcome_ids=plan.outcome_ids.filter(id=>id!==el.dataset.weekGoalRemove);
@@ -153,6 +174,22 @@
     root.addEventListener('submit',async e=>{
       e.preventDefault();
       const form=e.target;
+      if(form.id==='weekly-subject-budget-form'){
+        const plan=structuredClone(stateForWeek(chosenWeek)),targets={};
+        for(const input of form.querySelectorAll('[data-subject-budget]')){
+          if(input.value==='')continue;
+          const hours=Number(input.value),minutes=Math.round(hours*60);
+          if(!Number.isFinite(hours)||hours<0||hours>168||Math.abs(hours*60-minutes)>0.00001){
+            toast('Bitte gültige Stundenwerte eingeben.',true);return;
+          }
+          if(minutes)targets[input.dataset.subjectBudget]=minutes;
+        }
+        // Preserve archived subjects with prior budgets (not shown in the form).
+        const visible=new Set([...form.querySelectorAll('[data-subject-budget]')].map(i=>i.dataset.subjectBudget));
+        for(const [id,minutes] of Object.entries(plan.subject_minutes||{}))if(!visible.has(id))targets[id]=minutes;
+        plan.subject_minutes=targets;
+        await patchWeek(plan);return;
+      }
       if(form.id==='weekly-goal-form'){
         const id=$w('#weekly-goal-task').value;if(!id)return;
         const plan=structuredClone(stateForWeek(chosenWeek));
@@ -204,7 +241,12 @@
       return '<article class="panel accomplishment-card"><div class="accomplishment-check">✓</div><div><strong>'+h(t.title)+'</strong><div class="accomplishment-meta">'+h(sub?.name||'')+' · '+h(localDate(new Date(t.completed_at)))+
         (goals.has(t.id)?' · Wochenziel erreicht':'')+(used>0?' · '+Math.round(used/60)+' min Fokus':'')+'</div></div></article>';
     }).join('');
-    root.innerHTML='<section class="panel accomplishments-intro"><div><span class="eyebrow">DEINE ERGEBNISSE</span><h3>'+visible.length+' abgeschlossene Ergebnisse</h3>'+
+    const effort=subjectWeekStats(state.subjects,state.sessions,week,stateForWeek(week).subject_minutes||{},state.active_timer);
+    const effortRows=effort.rows.filter(r=>r.target!=null||r.seconds>0);
+    root.innerHTML='<section class="panel accomplishments-effort"><span class="eyebrow">AUFWAND ZÄHLT AUCH OHNE ABSCHLUSS</span><h3>Diese Woche: '+fmtFocus(effort.seconds)+' Fokuszeit</h3>'+
+      '<p class="inside-hint">Wirklich investierte Zeit — unabhängig davon, ob eine Aufgabe abgeschlossen ist. Zeit allein garantiert keinen Lernerfolg.</p>'+
+      '<div class="accomplishments-effort-list">'+effortRows.map(r=>'<div class="accomplishments-effort-row"><span>'+h(r.subject.name)+'</span><strong>'+fmtFocus(r.seconds)+(r.target!=null?' / '+fmtFocus(r.target*60)+' geplant':'')+'</strong></div>').join('')+'</div></section>'+
+      '<section class="panel accomplishments-intro"><div><span class="eyebrow">DEINE ERGEBNISSE</span><h3>'+visible.length+' abgeschlossene Ergebnisse</h3>'+
       '<p class="inside-hint">Abschlüsse werden aus deinen existierenden Aufgaben automatisch übernommen. Erledigte Unteraufgaben zählen nicht zusätzlich, wenn ihre Hauptaufgabe ebenfalls abgeschlossen ist.</p></div>'+
       '<div class="accomplishment-filters">'+[['week','Diese Woche'],['month','30 Tage'],['all','Alle']].map(([key,label])=>'<button type="button" class="btn '+(doneRange===key?'primary':'outline')+'" data-done-range="'+key+'">'+label+'</button>').join('')+'</div></section>'+
       '<div class="accomplishment-list">'+(cards||'<div class="panel today-empty">Noch keine abgeschlossenen Ergebnisse im ausgewählten Zeitraum.</div>')+'</div>';
@@ -222,6 +264,9 @@
       const node=document.createElement('div');
       node.id='today-lecture-attendance';node.hidden=true;
       today.insertBefore(node,today.querySelector('.today-summary'));
+      const effort=document.createElement('div');
+      effort.id='today-subject-study-time';effort.hidden=true;
+      today.insertBefore(effort,today.querySelector('.today-summary'));
     }
     if(typeof state!=='undefined'&&state)renderAttendance();
     bindWeeklyPlanner();
@@ -230,12 +275,13 @@
   if(typeof window!=='undefined'){
     window.renderWeeklyPlanner=()=>{if(state&&$w('#weekly-planner-root'))renderWeeklyPlanner();};
     window.renderAccomplishments=()=>{if(state&&$w('#accomplishments-root'))renderAccomplishments();};
+    window.renderSubjectStudyTime=()=>{if(state)renderTodayStudyTime();};
     window.renderLectureAttendance=()=>{
       if(!state)return;
       const now=Date.now();
       if(now-lastAttendanceCheck>=60000){lastAttendanceCheck=now;renderAttendance();}
     };
   }
-  if(typeof module==='object'&&module.exports)module.exports={localDate,monday,offsetDay,datesInWeek,lectureOccurs,lecturePassed,outstandingLectures};
+  if(typeof module==='object'&&module.exports)module.exports={localDate,monday,offsetDay,datesInWeek,lectureOccurs,lecturePassed,outstandingLectures,subjectFocusSeconds,subjectWeekStats,fmtFocus};
   if(typeof document!=='undefined')document.addEventListener('DOMContentLoaded',init);
 })();
