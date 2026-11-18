@@ -37,3 +37,10 @@
 .productivity-review-form textarea{resize:vertical}
 @media(max-width:790px){.productivity-priorities{grid-template-columns:1fr}.productivity-budget{display:block}.productivity-focus-panel{padding:22px}.productivity-focus-actions .btn{flex:1 1 130px}}
 @media(prefers-reduced-motion:reduce){.productivity-focus-overlay *{animation:none!important;transition:none!important}}
+
+.productivity-plan-entries{display:grid;gap:8px;margin-top:14px}
+.productivity-priority-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:10px}
+.productivity-priority-row div{min-width:0;overflow-wrap:anywhere}
+.productivity-priority-row small{display:block;font-weight:500;margin-top:3px;color:var(--muted)}
+.productivity-priority-row .btn{flex:none}
+.productivity-done{color:var(--muted);font-size:12px;font-weight:650}
