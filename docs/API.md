@@ -59,6 +59,17 @@ Authenticated `GET /api/profile/revision` returns a small opaque string `revisio
 
 The privacy-first execution features (Daily Top 3, time capacity, task next action, Focus Mode, resume note, and weekly review) are documented in [PRODUCTIVITY.md](PRODUCTIVITY.md). API additions: `PATCH /api/productivity/daily-plan` for local-date plans and `PATCH /api/productivity/weekly-review` for Monday-keyed reviews, `next_action` and `resume_note` in task patches, and `focus_mode_enabled` in settings patches. All are optional and retained in version-2 JSON backups.
 
+## Per-subject time budgets in weekly plans
+
+`PATCH /api/productivity/weekly-plan` also accepts an optional
+`subject_minutes` object mapping subject IDs to planned integer focus minutes
+per week, e.g. `{"mathe":240,"info":120}`. Omitted keys preserve stored
+fields in partial PATCHes; zero/null/empty target values remove individual
+time targets. Maximum 10,080 minutes per week in total and per subject.
+The UI uses hours (e.g. 4 h) and converts to integer minutes for storage.
+Historical plans lacking `subject_minutes` are normalized to `{}` during
+backup validation. Sessions and task completion remain independent.
+
 ## Weekly planner, lecture recurrence and focus completion
 
 - `PATCH /api/productivity/weekly-plan` — Monday `week_start`, optional `outcome_ids` (up to 3) and `days` map of local dates to task IDs; independent from Today pins.
