@@ -103,6 +103,38 @@ class HTTPTests(TestCase):
         self.assertEqual(self.request('/api/settings','PATCH',{'weekly_goal_minutes':60},origin='http://attacker.invalid')[0],403)
         self.assertEqual(self.request('/api/import/backup','POST',parsed)[0],200)
 
+    def test_optional_weekly_routes_and_public_assets(self):
+        # Assets are served without granting OS or calendar access.
+        for asset in ('/weekly_planner.js','/weekly_planner.css'):
+            status, raw = self.request(asset)
+            self.assertEqual(status, 200)
+            self.assertGreater(len(raw), 100)
+        self.assertEqual(self.request('/api/productivity/lectures','POST',{})[0],401)
+        self.login_admin()
+        status, created=self.request('/api/tasks','POST',{'title':'Worksheet','subject_id':'mathe'})
+        self.assertEqual(status,200)
+        tid=created['task_id']
+        code, plan=self.request('/api/productivity/weekly-plan','PATCH',{
+            'week_start':'2026-11-16','outcome_ids':[tid], 'days':{'2026-11-18':[tid]}})
+        self.assertEqual(code,200)
+        self.assertEqual(plan['state']['productivity']['weekly_plans']['2026-11-16']['outcome_ids'],[tid])
+        code, lecture=self.request('/api/productivity/lectures','POST',{
+            'title':'Analysis','subject_id':'mathe','weekday':0,
+            'start_time':'09:00','end_time':'10:30',
+            'first_date':'2026-11-02','last_date':'2026-11-30',
+            'timezone':'Europe/Zurich'})
+        self.assertEqual(code,200)
+        ident=lecture['lecture_id']
+        from datetime import datetime, timezone
+        with mock.patch.object(server,'now',return_value=datetime(2026,11,16,9,0,tzinfo=timezone.utc)):
+            self.assertEqual(self.request('/api/productivity/lectures/'+ident+'/attendance','PATCH',
+                {'date':'2026-11-16','status':'attended'})[0],400)
+        with mock.patch.object(server,'now',return_value=datetime(2026,11,16,10,0,tzinfo=timezone.utc)):
+            self.assertEqual(self.request('/api/productivity/lectures/'+ident+'/attendance','PATCH',
+                {'date':'2026-11-16','status':'attended'})[0],200)
+        self.assertEqual(self.request('/api/state')[1]['state']['productivity']['lectures'][0]['attendance']['2026-11-16'],'attended')
+        self.assertEqual(self.request('/api/productivity/lectures/'+ident,'DELETE',{})[0],200)
+
 if __name__=='__main__':
     import unittest
     unittest.main()
