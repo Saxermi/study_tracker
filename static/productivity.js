@@ -54,7 +54,7 @@
           <button type="submit" class="btn primary">Tagesplan speichern</button>
           <span id="productivity-plan-progress" class="inside-hint"></span>
         </div>
-      </form>`;
+      </form><div id="productivity-plan-entries" class="productivity-plan-entries"></div>`;
     const anchor = today.querySelector('.today-summary');
     today.insertBefore(panel,anchor);
     const focus = document.createElement('div');
@@ -75,6 +75,14 @@
       <small class="inside-hint">Die Notiz erscheint beim nächsten Start dieser Aufgabe. Die Ansicht kannst du ohne Timer-Stopp verlassen.</small>
     </div>`;
     document.body.appendChild(focus);
+    const reopen=document.createElement('button');
+    reopen.type='button';
+    reopen.id='productivity-focus-reopen';
+    reopen.className='btn white';
+    reopen.textContent='Fokusansicht';
+    reopen.hidden=true;
+    $p('.timer-buttons')?.appendChild(reopen);
+    reopen.addEventListener('click',openFocus);
     const review = document.createElement('dialog');
     review.id = 'productivity-review-dialog';
     review.className = 'productivity-review-dialog';
@@ -142,6 +150,16 @@
     $p('#productivity-capacity').value=plan.capacity_minutes??'';
     const finished = selected.filter(id=>state.tasks.find(t=>t.id===id)?.status==='done').length;
     $p('#productivity-plan-progress').textContent=selected.length?finished+' von '+selected.length+' Prioritäten erledigt':'Noch keine Prioritäten ausgewählt';
+    $p('#productivity-plan-entries').innerHTML=selected.map(id=>{
+      const task=state.tasks.find(t=>t.id===id);
+      if(!task)return '';
+      return '<div class="productivity-priority-row"><div><strong>'+safe(task.title)+'</strong>'+
+        (task.next_action?'<small>→ '+safe(task.next_action)+'</small>':'')+'</div>'+
+        (task.status==='done'?'<span class="productivity-done">Erledigt ✓</span>':
+          '<button type="button" class="btn outline" data-task-start="'+safe(task.id)+'" '+(state.active_timer?'disabled':'')+'>Start</button>')+'</div>';
+    }).join('');
+    const opener=$p('#productivity-focus-reopen');
+    if(opener)opener.hidden=!state.active_timer;
     const setting=$p('#productivity-focus-enabled');
     if(setting)setting.checked=state.settings?.focus_mode_enabled!==false;
     updateBudget();
@@ -235,9 +253,11 @@
     if(r&&!silent)toast('Wiederaufnahme-Notiz gespeichert.');
     return !!r;
   }
-  window.renderProductivity = renderProductivity;
-  window.updateProductivityClock = updateProductivityClock;
-  window.openProductivityFocus = openFocus;
-  window.closeProductivityFocus = closeFocus;
+  if(typeof window!=='undefined'){
+    window.renderProductivity = renderProductivity;
+    window.updateProductivityClock = updateProductivityClock;
+    window.openProductivityFocus = openFocus;
+    window.closeProductivityFocus = closeFocus;
+  }
   if(typeof module==='object'&&module.exports)module.exports={localDay,weekMonday,plannedMinutes};
 })();
