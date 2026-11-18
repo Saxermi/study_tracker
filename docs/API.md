@@ -58,3 +58,12 @@ Authenticated `GET /api/profile/revision` returns a small opaque string `revisio
 ## Optional execution productivity workflow
 
 The privacy-first execution features (Daily Top 3, time capacity, task next action, Focus Mode, resume note, and weekly review) are documented in [PRODUCTIVITY.md](PRODUCTIVITY.md). API additions: `PATCH /api/productivity/daily-plan` for local-date plans and `PATCH /api/productivity/weekly-review` for Monday-keyed reviews, `next_action` and `resume_note` in task patches, and `focus_mode_enabled` in settings patches. All are optional and retained in version-2 JSON backups.
+
+## Weekly planner, lecture recurrence and focus completion
+
+- `PATCH /api/productivity/weekly-plan` — Monday `week_start`, optional `outcome_ids` (up to 3) and `days` map of local dates to task IDs; independent from Today pins.
+- `POST /api/productivity/lectures` — `title`, `subject_id`, Monday-based `weekday` (0–6), `start_time`, `end_time`, `first_date`, optional `last_date`, `timezone` (IANA string).
+- `PATCH/DELETE /api/productivity/lectures/<id>` — update or delete the recurring lecture and its stored attendance decisions.
+- `PATCH /api/productivity/lectures/<id>/attendance` — `date` and one of `attended`, `missed`, `excused`, only after scheduled end.
+- `POST /api/timer/stop` supports optional `complete_task: true` to atomically save the session and mark the linked task done. Default `false` preserves previous behavior.
+- All data is stored per-profile and round-tripped in version-2 JSON backups. See [PRODUCTIVITY.md](PRODUCTIVITY.md) and [PSYCHOLOGY.md](PSYCHOLOGY.md).
