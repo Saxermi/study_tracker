@@ -54,7 +54,7 @@ class SubjectTimeBudgetTests(unittest.TestCase):
         before=copy.deepcopy(self.read()['productivity'])
         values=[
             {'missing':60},{'mathe':-1},{'mathe':3.5},{'mathe':'invalid'},
-            {'mathe':True},{'mathe':10081},{'mathe':8400,'info':1800},
+            {'mathe':True},{'mathe':False},{'mathe':10081},{'mathe':8400,'info':1800},
             'text',[],{str(n):1 for n in range(501)}
         ]
         for value in values:
