@@ -25,9 +25,10 @@
     return z.day>day||(z.day===day&&z.clock>=lecture.end_time);
   }
   function outstandingLectures(productivity,when=new Date(),maxDays=14){
-    const today=localDate(when),oldest=offsetDay(today,-maxDays);
     const pending=[];
     for(const lecture of productivity?.lectures||[]){
+      const today=currentAtZone(lecture.timezone,when).day;
+      const oldest=offsetDay(today,-maxDays);
       for(let day=oldest;day<=today;day=offsetDay(day,1)){
         if(lecturePassed(lecture,day,when)&&!lecture.attendance?.[day])pending.push({lecture,day});
       }
@@ -39,6 +40,7 @@
   let chosenWeek=monday(localDate(new Date()));
   let doneRange='week';
   let lastAttendanceCheck=0;
+  const deferredAttendance=new Set();
   function renderWeeklyPlanner(){
     const root=$w('#weekly-planner-root');
     if(!root||!state)return;
@@ -78,7 +80,7 @@
     renderAttendance();
   }
   function renderAttendance(){
-    const pending=outstandingLectures(state?.productivity||{});
+    const pending=outstandingLectures(state?.productivity||{}).filter(p=>!deferredAttendance.has(p.lecture.id+':'+p.day));
     for(const selector of ['#weekly-attendance','#today-lecture-attendance']){
       const el=$w(selector);
       if(!el)continue;
@@ -88,7 +90,8 @@
       el.innerHTML='<section class="panel weekly-attendance-box"><div><strong>Warst du bei dieser Vorlesung?</strong><p class="inside-hint">Nur im StudyTracker gefragt, wenn du die App öffnest. Nicht automatisch als besucht markieren.</p></div>'+
         shown.map(p=>'<div class="weekly-attendance-row"><div><strong>'+h(p.lecture.title)+'</strong><small>'+h(p.day)+' · '+h(p.lecture.start_time)+'–'+h(p.lecture.end_time)+'</small></div>'+
           '<div class="weekly-attendance-actions">'+[['attended','Ja'],['missed','Nein'],['excused','Entschuldigt']].map(([status,label])=>'<button type="button" class="btn outline" data-attendance-id="'+h(p.lecture.id)+'" data-attendance-day="'+h(p.day)+'" data-attendance-status="'+status+'">'+label+'</button>').join('')+'</div></div>').join('')+
-        (pending.length>shown.length?'<small class="inside-hint">'+(pending.length-shown.length)+' weitere unbeantwortete Vorlesungen</small>':'')+'</section>';
+        (pending.length>shown.length?'<small class="inside-hint">'+(pending.length-shown.length)+' weitere unbeantwortete Vorlesungen</small>':'')+
+        '<button type="button" class="btn outline" data-attendance-later>Später erinnern</button></section>';
     }
   }
   async function patchWeek(plan){
@@ -143,6 +146,11 @@
       }
     });
     document.addEventListener('click',async e=>{
+      if(e.target.closest('[data-attendance-later]')){
+        for(const entry of outstandingLectures(state?.productivity||{}).slice(0,3))
+          deferredAttendance.add(entry.lecture.id+':'+entry.day);
+        renderAttendance();return;
+      }
       const b=e.target.closest('[data-attendance-id]');if(!b)return;
       const result=await mutate('/api/productivity/lectures/'+b.dataset.attendanceId+'/attendance','PATCH',{
         date:b.dataset.attendanceDay,status:b.dataset.attendanceStatus});
