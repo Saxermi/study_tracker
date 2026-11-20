@@ -196,3 +196,6 @@
 .goal-focus-note,.overview-focus-note{font-size:11px;color:var(--muted);line-height:1.5}
 .goal-focus-note{margin:10px 0 0}
 .overview-focus-note{margin:4px 0 0}
+
+/* Pasted agent JSON: the same panel works in Settings and the Kanban modal. */
+.agent-paste{margin-top:20px;border-top:1px solid var(--line);padding-top:16px;min-width:0}.agent-paste h4{font-size:14px;margin:0 0 6px;color:var(--ink)}.agent-paste textarea{box-sizing:border-box;width:100%;min-height:120px;max-height:360px;resize:vertical;margin:10px 0;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}.agent-paste-status,#agent-paste-status{overflow-wrap:anywhere}#agent-paste-status[data-error=true]{color:var(--danger,#d65b5b)}#agent-paste-status:empty{display:none}
