@@ -11,8 +11,10 @@
   const datesInWeek=week=>Array.from({length:7},(_,i)=>offsetDay(week,i));
   const dayLabels=['Mo','Di','Mi','Do','Fr','Sa','So'];
   const dateLabel=day=>midday(day).toLocaleDateString(StudyI18n?.language==='en'?'en-GB':'de-CH',{day:'2-digit',month:'short'});
+  const zoneFormatters=new Map();
   function currentAtZone(zone,when=new Date()){
-    const parts=new Intl.DateTimeFormat('en-GB',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(when);
+    if(!zoneFormatters.has(zone)){if(zoneFormatters.size>=32)zoneFormatters.clear();zoneFormatters.set(zone,new Intl.DateTimeFormat('en-GB',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}))}
+    const parts=zoneFormatters.get(zone).formatToParts(when);
     const d=Object.fromEntries(parts.map(p=>[p.type,p.value]));
     return {day:d.year+'-'+d.month+'-'+d.day,clock:d.hour+':'+d.minute};
   }
@@ -25,12 +27,13 @@
     return z.day>day||(z.day===day&&z.clock>=lecture.end_time);
   }
   function outstandingLectures(productivity,when=new Date(),maxDays=14){
-    const pending=[];
+    const pending=[],zones=new Map();
     for(const lecture of productivity?.lectures||[]){
-      const today=currentAtZone(lecture.timezone,when).day;
+      if(!zones.has(lecture.timezone))zones.set(lecture.timezone,currentAtZone(lecture.timezone,when));
+      const z=zones.get(lecture.timezone),today=z.day;
       const oldest=offsetDay(today,-maxDays);
       for(let day=oldest;day<=today;day=offsetDay(day,1)){
-        if(lecturePassed(lecture,day,when)&&!lecture.attendance?.[day])pending.push({lecture,day});
+        if(lectureOccurs(lecture,day)&&(today>day||z.clock>=lecture.end_time)&&!lecture.attendance?.[day])pending.push({lecture,day});
       }
     }
     pending.sort((a,b)=>b.day.localeCompare(a.day)||a.lecture.start_time.localeCompare(b.lecture.start_time));
@@ -79,19 +82,23 @@
       '<div class="weekly-lecture-list">'+lectures.map(l=>'<div class="weekly-lecture-row"><div><strong>'+h(l.title)+'</strong><small>'+dayLabels[l.weekday]+' · '+h(l.start_time)+'–'+h(l.end_time)+' · '+h(l.first_date)+(l.last_date?' bis '+h(l.last_date):'')+'</small></div><button class="btn outline" type="button" data-lecture-delete="'+h(l.id)+'">Löschen</button></div>').join('')+'</div></section>';
     renderAttendance();
   }
+  const attendanceMarkup=new WeakMap();
   function renderAttendance(){
+    if(document.hidden||!['today','week'].includes(currentPage))return;
+    lastAttendanceCheck=Date.now();
     const pending=outstandingLectures(state?.productivity||{}).filter(p=>!deferredAttendance.has(p.lecture.id+':'+p.day));
-    for(const selector of ['#weekly-attendance','#today-lecture-attendance']){
+    for(const selector of [currentPage==='week'?'#weekly-attendance':'#today-lecture-attendance']){
       const el=$w(selector);
       if(!el)continue;
-      if(!pending.length){el.innerHTML='';el.hidden=true;continue}
+      if(!pending.length){if(el.innerHTML)el.innerHTML='';attendanceMarkup.delete(el);el.hidden=true;continue}
       el.hidden=false;
       const shown=pending.slice(0,3);
-      el.innerHTML='<section class="panel weekly-attendance-box"><div><strong>Warst du bei dieser Vorlesung?</strong><p class="inside-hint">Nur im StudyTracker gefragt, wenn du die App öffnest. Nicht automatisch als besucht markieren.</p></div>'+
+      const markup='<section class="panel weekly-attendance-box"><div><strong>Warst du bei dieser Vorlesung?</strong><p class="inside-hint">Nur im StudyTracker gefragt, wenn du die App öffnest. Nicht automatisch als besucht markieren.</p></div>'+
         shown.map(p=>'<div class="weekly-attendance-row"><div><strong>'+h(p.lecture.title)+'</strong><small>'+h(p.day)+' · '+h(p.lecture.start_time)+'–'+h(p.lecture.end_time)+'</small></div>'+
           '<div class="weekly-attendance-actions">'+[['attended','Ja'],['missed','Nein'],['excused','Entschuldigt']].map(([status,label])=>'<button type="button" class="btn outline" data-attendance-id="'+h(p.lecture.id)+'" data-attendance-day="'+h(p.day)+'" data-attendance-status="'+status+'">'+label+'</button>').join('')+'</div></div>').join('')+
         (pending.length>shown.length?'<small class="inside-hint">'+(pending.length-shown.length)+' weitere unbeantwortete Vorlesungen</small>':'')+
         '<button type="button" class="btn outline" data-attendance-later>Später erinnern</button></section>';
+      if(attendanceMarkup.get(el)!==markup){el.innerHTML=markup;attendanceMarkup.set(el,markup)}
     }
   }
   async function patchWeek(plan){
@@ -200,10 +207,9 @@
   if(typeof window!=='undefined'){
     window.renderWeeklyPlanner=()=>{if(state&&$w('#weekly-planner-root'))renderWeeklyPlanner();};
     window.renderAccomplishments=()=>{if(state&&$w('#accomplishments-root'))renderAccomplishments();};
-    window.renderLectureAttendance=()=>{
-      if(!state)return;
-      const now=Date.now();
-      if(now-lastAttendanceCheck>=60000){lastAttendanceCheck=now;renderAttendance();}
+    window.renderLectureAttendance=(force=false)=>{
+      if(!state||document.hidden||!['today','week'].includes(currentPage))return;
+      if(force||Date.now()-lastAttendanceCheck>=60000)renderAttendance();
     };
   }
   if(typeof module==='object'&&module.exports)module.exports={localDate,monday,offsetDay,datesInWeek,lectureOccurs,lecturePassed,outstandingLectures};
