@@ -82,7 +82,7 @@ No other keys are accepted. Do not produce fake `status`, `completed_at`, `sessi
 
 ## How to save / import
 
-Save as a UTF-8 `*.json` file to the **private**, synced `data/inbox/<username>/` folder. The app must be running. It polls about every four seconds, waits for a stable file and moves successful inputs to `processed/`; rejected inputs go to `rejected/` with an error text file. Imports are idempotent across the same `batch_id` and `external_id`.
+Save as a UTF-8 `*.json` file to the **private**, synced `data/inbox/<username>/` folder. The app must be running. It polls about every 30 seconds when idle (4 seconds around activity), waits for a stable file and moves successful inputs to `processed/`; rejected inputs go to `rejected/` with an error text file. Imports are idempotent across the same `batch_id` and `external_id`.
 
 To avoid incomplete Polybox syncs, write a temporary filename (not `.json`) and rename it to `.json` only when the file is complete. Alternatively, use:
 

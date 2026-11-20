@@ -1,5 +1,12 @@
 # Changelog (English)
 
+## Unreleased — low-power background operation
+
+- Visibility-controlled timer callbacks and calendar-window cache for completed statistics; only the visible page is rendered, with unchanged clock/attendance DOM retained.
+- Single-flight revision polling (15 s visible, 60 s hidden), foreground refresh, timeout/backoff, and protection against stale responses.
+- Configurable 30 s idle/4 s active inbox scan, metadata-validated account cache, safer external revision detection, and no duplicate-batch profile rewrites. Reduced HTTP server idle wakeups.
+- Reproducible synthetic before/after benchmarks, bilingual performance documentation and regression tests. Timer timestamps, existing profiles and import contracts are unchanged.
+
 ## 4.4 — ID-aware import assistant
 
 - Added an in-app import assistant with selected subject and optional existing parent task.
