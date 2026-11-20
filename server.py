@@ -17,6 +17,7 @@ import os
 import re
 import secrets
 import shutil
+import stat
 import tempfile
 import threading
 import time
@@ -252,6 +253,16 @@ def accounts():
 
 def profile_revision(user_id):
     return ":".join(map(str, file_signature(profile_path(user_id).stat())))
+
+
+def profile_snapshot(user_id):
+    with LOCK:
+        for _ in range(3):
+            revision = profile_revision(user_id)
+            data = load_profile(user_id)
+            if profile_revision(user_id) == revision:
+                return data, revision
+        err("Profil wird gerade synchronisiert. Bitte erneut versuchen.", 503)
 
 
 def empty_productivity():
@@ -1252,7 +1263,7 @@ def ingest_inbox_once(activity=None) -> list[dict]:
             for path in sorted(inbox.glob("*.json"))[:50]:
                 try:
                     snapshot = path.stat()
-                    if not path.is_file():
+                    if not stat.S_ISREG(snapshot.st_mode):
                         continue
                 except FileNotFoundError:
                     continue
@@ -1344,9 +1355,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.json_response(200, {"setup_required": not bool(a["users"]), "user": public_user(u) if u else None})
             if route.path == "/api/state":
                 u = self.get_user(True)
-                with LOCK:
-                    state = load_profile(u["id"])
-                    revision = profile_revision(u["id"])
+                state, revision = profile_snapshot(u["id"])
                 return self.json_response(200, {"state": state, "user": public_user(u), "server_time": iso(), "revision": revision})
             if route.path == "/api/profile/revision":
                 u = self.get_user(True)

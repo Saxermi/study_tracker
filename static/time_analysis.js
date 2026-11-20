@@ -104,7 +104,7 @@
     if(!windows){windows=new Map();completedWindows.set(sessions,windows)}
     let entry=windows.get(from);
     if(!entry||to<entry.computedAt){
-      const stable=[],pending=[];
+      const stable=[],pending=[],candidates=[];
       for(const s of sessions){
         // Saved rows are normally entirely in the past, but manual entries
         // may end in the future. Never freeze a partially elapsed saved row.
@@ -117,14 +117,21 @@
           if(Number.isFinite(start))bound=Math.max(bound,start+1000*((Number(s.duration_seconds)||0)+Number(s.break_seconds)));
         }
         if(bound<=from)continue;
+        candidates.push(s);
         if(bound>to){pending.push(s);continue}
         const row=clipSession(s,from,to);if(row)stable.push(row);
       }
-      entry={stable,pending,computedAt:to};
+      entry={stable,pending,candidates,computedAt:to};
       windows.delete(from);windows.set(from,entry);
       while(windows.size>2)windows.delete(windows.keys().next().value);
     }
     return entry.stable.concat(entry.pending.map(s=>clipSession(s,from,to)).filter(Boolean));
+  }
+
+  function completedCandidates(sessions,from,to){
+    if(!valid(from,to))return [];
+    completedInWindow(sessions,from,to);
+    return completedWindows.get(sessions).get(from).candidates.slice();
   }
 
   function accumulate(sessions, view='week-average', nowMs=Date.now()) {
@@ -169,5 +176,5 @@
       startHour:recentStartHour,
       computedAt:nowMs};
   }
-  return {focusSpans, clipSession, completedInWindow, accumulate, mondayKey};
+  return {focusSpans, clipSession, completedInWindow, completedCandidates, accumulate, mondayKey};
 });

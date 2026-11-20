@@ -19,7 +19,7 @@ const old={...session,id:'old',started_at:m('15','21:00'),ended_at:m('15','21:30
 function context(now=NOW, state={sessions:[session,old],active_timer:active,subjects:[{id:'num',name:'NumCSE',color:'#123456'}],settings:{weekly_goal_minutes:60},tasks:[]}){
  class FixedDate extends Date {constructor(...a){super(...(a.length?a:[now]))}static now(){return now}}
  const els=new Map();const $=id=>{if(!els.has(id))els.set(id,{value:'week',style:{},textContent:'',innerHTML:''});return els.get(id)};
- const c={Date:FixedDate,StudyTime,state,$,fmt:s=>s/60+' min',niceTooltip:x=>x,escapeHtml:x=>String(x),lastOverviewMinute:null};
+ const c={Date:FixedDate,StudyTime,state,$,setText:(id,v)=>{$(id).textContent=String(v)},setHTML:(id,v)=>{$(id).innerHTML=v},fmt:s=>s/60+' min',niceTooltip:x=>x,escapeHtml:x=>String(x),lastOverviewMinute:null};
  // Exercise the real dashboard selectors and renderers, not a reimplementation.
  vm.runInNewContext(app.slice(app.indexOf('function sessionsInWindow('),app.indexOf('function sessionCategory(')),c);
  vm.runInNewContext(app.slice(app.indexOf('function weekStart('),app.indexOf('function localTimestamp(')),c);

@@ -21,7 +21,7 @@ const icon = name => svg(ICONS[name] || ICONS.check);
 const hydrateIcons = () => $$('[data-icon]').forEach(el=>{if(el.dataset.iconRendered!==el.dataset.icon){el.innerHTML=icon(el.dataset.icon);el.dataset.iconRendered=el.dataset.icon}});
 let state = null, user = null, currentPage = 'overview', editId = null, modalKind = null, modalTags = new Set(), modalColor = COLORS[0], taskDefaultStatus = 'todo';
 let lastOverviewMinute=null, renderIndex=null, indexedState=null;
-let lastUiMinute=null,lastCalendarDay=null,renderPending=false,profileEpoch=0,accountEpoch=0,pendingMutations=0;
+let lastUiMinute=null,lastCalendarDay=null,renderPending=false,importNoticePending=false,profileEpoch=0,accountEpoch=0,pendingMutations=0;
 const htmlSources=new WeakMap();
 function setText(id,value){const el=$(id);if(!el)return;const text=String(value);if(el.textContent!==text&&(StudyI18n.language!=='en'||el.textContent!==StudyI18n.translate?.(text)))el.textContent=text}
 function setHTML(id,value){const el=$(id);if(!el)return;if(htmlSources.get(el)!==value){el.innerHTML=value;htmlSources.set(el,value)}}
@@ -34,7 +34,7 @@ const api = async (path, method='GET', body=null, signal=null) => {
  if(body!==null)opts.body=JSON.stringify(body);
  const res=await fetch(path,opts);let data;
  try{data=await res.json()}catch{throw new Error('Unerwartete Serverantwort')}
- if(!res.ok)throw new Error(data.error || `HTTP ${res.status}`);
+ if(!res.ok){const error=new Error(data.error || `HTTP ${res.status}`);error.status=res.status;throw error}
  return data;
 };
 let toastTimeout;
@@ -82,7 +82,8 @@ function sessionForWeek(includeActive=true){const end=Date.now();return sessions
 function localTimestamp(){let d=new Date();return dateKey(d)+'T'+pad(d.getHours())+':'+pad(d.getMinutes())}
 function showPage(page){if(!['overview','today','week','done','board','insights','history','subjects','settings'].includes(page))page='overview';currentPage=page;$$('.page').forEach(p=>p.classList.toggle('visible',p.id==='page-'+page));$$('.nav-link').forEach(b=>b.classList.toggle('active',b.dataset.page===page));$('#crumb-current').textContent={overview:'Übersicht',today:'Heute',week:'Woche',done:'Erfolge',board:'Kanban-Board',insights:'Auswertungen',history:'Lernhistorie',subjects:'Fächer & Ziele',settings:'Einstellungen'}[page];$('#sidebar').classList.remove('open');if(location.hash.slice(1)!==page)history.replaceState(null,'','#'+page);renderVisiblePage()}
 function renderVisiblePage(){
- if(!state||document.hidden)return;
+ if(!state)return;
+ if(document.hidden){renderPending=true;return}
  if(currentPage==='overview'){renderTimer();renderOverview()}
  else if(currentPage==='today')renderToday();
  else if(currentPage==='board')renderBoard();
@@ -93,7 +94,7 @@ function renderVisiblePage(){
  else if(currentPage==='week')window.renderWeeklyPlanner?.();
  else if(currentPage==='done')window.renderAccomplishments?.();
  window.renderProductivity?.();
- if(currentPage==='today'||currentPage==='week')window.renderLectureAttendance?.(true);
+ if(currentPage==='today')window.renderLectureAttendance?.(true);
  if(modalKind==='agent-import')renderAgentBuilder();
  syncClock();
 }
@@ -163,7 +164,9 @@ function renderOverview(){renderWeekTotals();$('#kpi-today').textContent=fmt(tot
  $('#recent-sessions').innerHTML=state.sessions.slice().sort((a,b)=>b.started_at.localeCompare(a.started_at)).slice(0,3).map(s=>`<div class="preview-row"><span class="preview-icon">${icon('clock')}</span><div class="preview-main"><strong>${escapeHtml(s.title||taskById(s.task_id)?.title||'Lerneinheit')}</strong><small>${escapeHtml(subject(s.subject_id)?.name||'Fach')} · ${formatDate(s.started_at)}</small></div><span class="preview-value">${fmt(s.duration_seconds)}</span></div>`).join('')||'<div class="empty">Noch keine Lernzeiten gespeichert.</div>';
  renderActivity();renderDistribution()}
 function renderActivity(){const n=$('#overview-range').value;const sessions=state.sessions;let bars=[];let label='';if(n==='today'){label='Heute · nach tatsächlicher Fokuszeit';
-   const model=StudyTime.accumulate([...state.sessions,...(state.active_timer?[state.active_timer]:[])],'today',Date.now());
+   const now=Date.now(),start=new Date(now);start.setHours(0,0,0,0);
+   const completed=StudyTime.completedCandidates(state.sessions,start.getTime(),now);
+   const model=StudyTime.accumulate([...completed,...(state.active_timer?[state.active_timer]:[])],'today',now);
    bars=model.values.map((secs,h)=>({label:`${pad(h)}h`,secs}));
  }
  else if(n==='365') {label='Letzte 12 Monate';for(let i=11;i>=0;i--){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-i);const k=`${d.getFullYear()}-${pad(d.getMonth()+1)}`;bars.push({label:d.toLocaleDateString(StudyI18n.locale(),{month:'short'}),secs:sessions.filter(s=>isoDate(s.started_at).startsWith(k)).reduce((a,s)=>a+s.duration_seconds,0)})}}
@@ -518,7 +521,7 @@ async function handleModalSubmit(e){e.preventDefault();if(modalKind==='exercise-
  else if(modalKind==='session'){const d=new Date($('#f-s-date').value+'T'+$('#f-s-time').value);if(Number.isNaN(+d)){toast('Ungültiger Zeitpunkt.',true);return}const body={subject_id:$('#f-s-subject').value,task_id:$('#f-s-task').value||null,title:$('#f-s-title').value,notes:$('#f-s-notes').value,started_at:d.toISOString(),duration_seconds:Number($('#f-s-minutes').value)*60,category_tag_id:$('#f-s-category').value||null,tags:[...modalTags]};if(await mutate(editId?'/api/sessions/'+editId:'/api/sessions',editId?'PATCH':'POST',body)){modalClose();toast('Lernzeit gespeichert.')}}}
 async function importFile(file,kind){if(!file)return;if(file.size>8*1024*1024){toast('Datei zu groß.',true);return}try{const body=JSON.parse(await file.text());if(kind==='backup'&&!confirm('Achtung: Das komplette Profil wird mit diesem Backup überschrieben. Fortfahren?'))return;const result=await mutate(kind==='tasks'?'/api/import/tasks':'/api/import/backup','POST',body);if(result)toast(kind==='tasks'?`${result.added} Aufgaben importiert, ${result.skipped} Duplikate übersprungen.`:'Backup wiederhergestellt.')}catch(e){toast('JSON konnte nicht gelesen werden: '+e.message,true)}}
 function download(path){const a=document.createElement('a');a.href=path;document.body.appendChild(a);a.click();a.remove()}
-async function showAuth(){accountEpoch++;profileEpoch++;profilePoller.stop();uiClock.stop();const status=await api('/api/auth/status');if(status.user){user=status.user;$('#app').hidden=false;$('#auth-screen').hidden=true;await refresh();showPage(location.hash.slice(1)||'overview');profilePoller.start()}else {user=null;state=null;renderIndex=null;indexedState=null;renderPending=false;window.closeProductivityFocus?.();$('#agent-paste-json').value='';$('#agent-paste-status').textContent='';$('#app').hidden=true;$('#auth-screen').hidden=false;const setup=status.setup_required;$('#auth-title').innerHTML=setup?'Starte dein <span>Lernstudio.</span>':'Schön, dass du da bist<span>.</span>';$('#auth-subtitle').textContent=setup?'Erstelle das erste Administratorkonto. Deine Daten bleiben lokal.':'Melde dich an und mach dort weiter, wo du aufgehört hast.';$('#auth-name-wrap').hidden=!setup;$('#auth-name').required=setup;$('#auth-submit').innerHTML=setup?'Konto anlegen →':'Anmelden →';$('#auth-form').dataset.setup=setup?'1':'0';$('#auth-password').autocomplete=setup?'new-password':'current-password'}}
+async function showAuth(){accountEpoch++;profileEpoch++;profilePoller.stop();uiClock.stop();const status=await api('/api/auth/status');if(status.user){user=status.user;$('#app').hidden=false;$('#auth-screen').hidden=true;await refresh();showPage(location.hash.slice(1)||'overview');profilePoller.start()}else {user=null;state=null;renderIndex=null;indexedState=null;renderPending=false;importNoticePending=false;window.closeProductivityFocus?.();$('#agent-paste-json').value='';$('#agent-paste-status').textContent='';$('#app').hidden=true;$('#auth-screen').hidden=false;const setup=status.setup_required;$('#auth-title').innerHTML=setup?'Starte dein <span>Lernstudio.</span>':'Schön, dass du da bist<span>.</span>';$('#auth-subtitle').textContent=setup?'Erstelle das erste Administratorkonto. Deine Daten bleiben lokal.':'Melde dich an und mach dort weiter, wo du aufgehört hast.';$('#auth-name-wrap').hidden=!setup;$('#auth-name').required=setup;$('#auth-submit').innerHTML=setup?'Konto anlegen →':'Anmelden →';$('#auth-form').dataset.setup=setup?'1':'0';$('#auth-password').autocomplete=setup?'new-password':'current-password'}}
 function positionChartTooltip(event){const tip=$('#chart-tooltip');if(!tip||tip.hidden)return;const x=event.clientX??window.innerWidth/2,y=event.clientY??window.innerHeight/2;tip.style.left=Math.max(12,Math.min(window.innerWidth-tip.offsetWidth-12,x+15))+'px';tip.style.top=Math.max(12,Math.min(window.innerHeight-tip.offsetHeight-12,y-45))+'px'}
 function bindChartTooltips(){const tip=$('#chart-tooltip');document.addEventListener('pointerover',e=>{const el=e.target.closest?.('[data-chart-tip]');if(!el)return;tip.textContent=el.dataset.chartTip;tip.hidden=false;positionChartTooltip(e)});document.addEventListener('pointermove',e=>{if(!tip.hidden)positionChartTooltip(e)});document.addEventListener('pointerout',e=>{if(e.target.closest?.('[data-chart-tip]')&&!e.relatedTarget?.closest?.('[data-chart-tip]'))tip.hidden=true});document.addEventListener('focusin',e=>{const el=e.target.closest?.('[data-chart-tip]');if(!el)return;tip.textContent=el.dataset.chartTip;tip.hidden=false;const r=el.getBoundingClientRect();positionChartTooltip({clientX:r.left+r.width/2,clientY:r.top})});document.addEventListener('focusout',e=>{if(e.target.closest?.('[data-chart-tip]'))tip.hidden=true});}
 function bind(){bindChartTooltips();hydrateIcons();StudyI18n.bind();$$('.nav-link').forEach(el=>el.addEventListener('click',()=>showPage(el.dataset.page)));$('#mobile-toggle').addEventListener('click',()=>$('#sidebar').classList.toggle('open'));
@@ -587,12 +590,14 @@ async function pollProfile(){
   const revision=await api('/api/profile/revision','GET',null,controller.signal);
   if(epoch!==profileEpoch||owner!==accountEpoch||pendingMutations||revision.revision===profileRevision)return;
   const r=await api('/api/state','GET',null,controller.signal);
-  if(epoch!==profileEpoch||owner!==accountEpoch||pendingMutations||r.user.id!==user.id)return;
+  if(epoch!==profileEpoch||owner!==accountEpoch||pendingMutations)return;
+  if(r.user.id!==user.id){await showAuth();return}
   const incoming=r.state.imports||[],previous=state.imports||[];
   const imported=incoming.length!==previous.length||incoming.at(-1)?.batch_id!==previous.at(-1)?.batch_id;
   state=r.state;profileRevision=r.revision;renderAll();
-  if(imported&&!document.hidden)toast('Neue Aufgaben aus der Polybox-Inbox importiert.');
- }finally{clearTimeout(timeout)}
+  if(imported){if(document.hidden)importNoticePending=true;else toast('Neue Aufgaben aus der Polybox-Inbox importiert.')}
+ }catch(e){if(e.status===401&&owner===accountEpoch){await showAuth();return}throw e}
+ finally{clearTimeout(timeout)}
 }
 const uiClock=StudyPerformance.createClock({
  shouldRun:()=>!!state&&!document.hidden&&movingTimer()&&(currentPage==='overview'||focusOverlayVisible()),
@@ -603,6 +608,7 @@ document.addEventListener('visibilitychange',()=>{
  if(document.hidden){uiClock.stop();profilePoller.visibilityChanged();return}
  if(renderPending)renderAll();
  else {refreshVisibleTime(true);updateClock()}
+ if(importNoticePending&&user){importNoticePending=false;toast('Neue Aufgaben aus der Polybox-Inbox importiert.')}
  syncClock();profilePoller.visibilityChanged();
 });
 (async()=>{bind();try{await showAuth()}catch(e){toast(e.message,true)}})();
