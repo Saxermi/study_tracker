@@ -219,11 +219,39 @@ def profile_path(user_id: str):
     return DATA_DIR / "profiles" / (user_id + ".json")
 
 
+_accounts_cache = None
+
+
+def file_signature(st):
+    """Detect replacements even when a sync client preserves mtime/size."""
+    return (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns)
+
+
 def accounts():
-    data = read_json(accounts_path(), {"version": 2, "users": []})
-    if data.get("version") != 2:
-        err("Unbekanntes Kontoformat.", 500)
-    return data
+    global _accounts_cache
+    path = accounts_path()
+    with LOCK:
+        try:
+            signature = file_signature(path.stat())
+        except FileNotFoundError:
+            _accounts_cache = None
+            return {"version": 2, "users": []}
+        if _accounts_cache is not None and _accounts_cache[:2] == (path, signature):
+            return copy.deepcopy(_accounts_cache[2])
+        # Bind the cached signature to the file actually opened, not an earlier
+        # path.stat() that could refer to a replaced file.
+        with path.open("r", encoding="utf-8") as fp:
+            before = file_signature(os.fstat(fp.fileno()))
+            data = json.load(fp)
+            after = file_signature(os.fstat(fp.fileno()))
+        if data.get("version") != 2:
+            err("Unbekanntes Kontoformat.", 500)
+        _accounts_cache = (path, after, data) if before == after else None
+        return copy.deepcopy(data)
+
+
+def profile_revision(user_id):
+    return ":".join(map(str, file_signature(profile_path(user_id).stat())))
 
 
 def empty_productivity():
@@ -1049,7 +1077,8 @@ def mutate(user_id, method, path, body):
             s = restored
         else:
             err("Unbekannter API-Endpunkt.", 404)
-        save_profile(user_id, s)
+        if not message.get("already_imported"):
+            save_profile(user_id, s)
         return {"ok": True, "state": s, **message}
 
 
@@ -1207,33 +1236,57 @@ def export_csv(state, kind):
     return ("\ufeff" + stream.getvalue()).encode("utf-8")
 
 
-def ingest_inbox_once() -> list[dict]:
+def ingest_inbox_once(activity=None) -> list[dict]:
     """Safe file polling for Polybox synced inbox; process files per username.
 
     Bad inputs are quarantined; duplicates produce 0 inserts; never execute commands.
     """
     results = []
+    if activity is not None:
+        activity["pending"] = False
     with LOCK:
         for u in accounts()["users"]:
             inbox = DATA_DIR / "inbox" / u["username"]
-            inbox.mkdir(parents=True, exist_ok=True)
+            if not inbox.is_dir():
+                inbox.mkdir(parents=True, exist_ok=True)
             for path in sorted(inbox.glob("*.json"))[:50]:
-                if not path.is_file():
+                try:
+                    snapshot = path.stat()
+                    if not path.is_file():
+                        continue
+                except FileNotFoundError:
                     continue
-                # Polybox may still be syncing. Only consume files untouched for 3 seconds.
-                if time.time() - path.stat().st_mtime < 3:
+                # Keep the existing 3s quiet period, plus verify the snapshot
+                # after reading. A changing sync file must not be quarantined.
+                if time.time() - snapshot.st_mtime < 3:
+                    if activity is not None:
+                        activity["pending"] = True
                     continue
                 good, error = False, None
                 try:
-                    if path.stat().st_size > 1024 * 1024:
+                    if snapshot.st_size > 1024 * 1024:
                         err("Importdatei über 1 MB.")
-                    payload = json.loads(path.read_text("utf-8"))
+                    raw = path.read_text("utf-8")
+                    if file_signature(path.stat()) != file_signature(snapshot):
+                        if activity is not None:
+                            activity["pending"] = True
+                        continue
+                    payload = json.loads(raw)
                     s = load_profile(u["id"])
                     outcome = add_agent_tasks(s, payload)
-                    save_profile(u["id"], s)
+                    if not outcome.get("already_imported"):
+                        save_profile(u["id"], s)
                     results.append({"file": path.name, "user": u["username"], **outcome})
                     good = True
                 except (OSError, ValueError, TypeError, KeyError, ClientError) as ex:
+                    try:
+                        changed = file_signature(path.stat()) != file_signature(snapshot)
+                    except OSError:
+                        changed = True
+                    if changed:
+                        if activity is not None:
+                            activity["pending"] = True
+                        continue
                     error = str(ex)
                     results.append({"file": path.name, "user": u["username"], "error": error})
                 destination = inbox / ("processed" if good else "rejected")
@@ -1291,11 +1344,13 @@ class Handler(BaseHTTPRequestHandler):
                 return self.json_response(200, {"setup_required": not bool(a["users"]), "user": public_user(u) if u else None})
             if route.path == "/api/state":
                 u = self.get_user(True)
-                return self.json_response(200, {"state": load_profile(u["id"]), "user": public_user(u), "server_time": iso(),
-                                                "revision": str(profile_path(u["id"]).stat().st_mtime_ns)})
+                with LOCK:
+                    state = load_profile(u["id"])
+                    revision = profile_revision(u["id"])
+                return self.json_response(200, {"state": state, "user": public_user(u), "server_time": iso(), "revision": revision})
             if route.path == "/api/profile/revision":
                 u = self.get_user(True)
-                return self.json_response(200, {"revision": str(profile_path(u["id"]).stat().st_mtime_ns)})
+                return self.json_response(200, {"revision": profile_revision(u["id"])})
             if route.path == "/api/users":
                 u = self.get_user(True)
                 if u["role"] != "admin":
@@ -1318,7 +1373,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.raw_response(200, body, mime, {"Content-Disposition": f'attachment; filename="{name}"'})
             if route.path in ("/", "/index.html"):
                 path, mime = STATIC / "index.html", "text/html; charset=utf-8"
-            elif route.path in ("/app.js", "/app.css", "/features.css", "/i18n.js", "/time_analysis.js", "/exercise_review_import.js", "/import_wizard.js", "/rich_feedback.js", "/feedback_insights.js", "/productivity.js", "/productivity.css", "/weekly_planner.js", "/weekly_planner.css", "/favicon.svg"):
+            elif route.path in ("/app.js", "/performance.js", "/app.css", "/features.css", "/i18n.js", "/time_analysis.js", "/exercise_review_import.js", "/import_wizard.js", "/rich_feedback.js", "/feedback_insights.js", "/productivity.js", "/productivity.css", "/weekly_planner.js", "/weekly_planner.css", "/favicon.svg"):
                 path = STATIC / route.path.lstrip("/")
                 mime = {".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml"}[path.suffix]
             else:
@@ -1368,9 +1423,10 @@ class Handler(BaseHTTPRequestHandler):
                     err("Nur Admins dürfen Benutzer erstellen.", 403)
                 u = create_user(body, first=False)
                 return self.json_response(200, {"user": u})
-            result = mutate(user["id"], method, path, body)
-            if isinstance(result, dict) and "state" in result:
-                result["revision"] = str(profile_path(user["id"]).stat().st_mtime_ns)
+            with LOCK:
+                result = mutate(user["id"], method, path, body)
+                if isinstance(result, dict) and "state" in result:
+                    result["revision"] = profile_revision(user["id"])
             return self.json_response(200, result)
         except ClientError as e:
             self.json_response(e.status, {"error": e.message})
@@ -1382,18 +1438,33 @@ class Handler(BaseHTTPRequestHandler):
             super().log_message(format, *args)
 
 
+def inbox_idle_seconds():
+    """Adjust latency for local/synced files without a platform dependency."""
+    try:
+        return max(4.0, min(300.0, float(os.environ.get("STUDYTRACKER_INBOX_IDLE_SECONDS", "30"))))
+    except (ValueError, TypeError):
+        return 30.0
+
+
+def background_import(stop, idle_seconds=None):
+    idle = inbox_idle_seconds() if idle_seconds is None else idle_seconds
+    delay = 4.0  # one prompt initial scan
+    while not stop.wait(delay):
+        activity = {}
+        try:
+            processed = ingest_inbox_once(activity)
+            for r in processed:
+                print("[Import]", r)
+            delay = 4.0 if processed or activity.get("pending") else idle
+        except Exception as e:
+            print("[Importfehler]", e)
+            delay = idle  # don't repeatedly wake on persistent I/O failure
+
+
 def run_server(port=8765, open_browser=True):
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     stop = threading.Event()
-    def background_import():
-        while not stop.wait(4):
-            try:
-                processed = ingest_inbox_once()
-                for r in processed:
-                    print("[Import]", r)
-            except Exception as e:
-                print("[Importfehler]", e)
-    thread = threading.Thread(target=background_import, name="task-inbox", daemon=True)
+    thread = threading.Thread(target=background_import, args=(stop,), name="task-inbox", daemon=True)
     thread.start()
     try:
         with ThreadingHTTPServer(("127.0.0.1", port), Handler) as srv:
@@ -1401,7 +1472,7 @@ def run_server(port=8765, open_browser=True):
             print(f"Polybox-Datenverzeichnis: {DATA_DIR}")
             if open_browser:
                 threading.Timer(0.7, lambda: webbrowser.open(f"http://127.0.0.1:{srv.server_port}")).start()
-            srv.serve_forever()
+            srv.serve_forever(poll_interval=10.0)
     except KeyboardInterrupt:
         print("\nStudyTracker beendet.")
     finally:
