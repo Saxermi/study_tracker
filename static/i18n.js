@@ -101,7 +101,7 @@ const TRANSLATIONS = {
  'Nur Administratoren können neue Benutzer anlegen.':'Only administrators can create new users.',
  'Polybox-Autoimport':'Polybox auto import','Agenten-JSON einfach in deinen Importordner legen.':'Place agent-generated JSON into your import folder.',
  'Dein Eingangsordner':'Your inbox folder',
- 'Solange die App läuft, werden neue JSON-Dateien alle 4 Sekunden verarbeitet. Erkannte Duplikate werden übersprungen; fehlerhafte Dateien landen in':'While the app runs, new JSON files are processed every four seconds. Duplicates are skipped; invalid files are moved to',
+ 'Solange die App läuft, wird die Inbox im Leerlauf alle 30 Sekunden geprüft (bei Aktivität alle 4 Sekunden). Erkannte Duplikate werden übersprungen; fehlerhafte Dateien landen in':'While the app runs, the inbox is checked every 30 seconds when idle (every 4 seconds during activity). Duplicates are skipped; invalid files are moved to',
  'Vorlage und genaue JSON-Regeln stehen in':'Templates and detailed JSON rules are in',
  'Lokal auf deinem Computer. Polybox synchronisiert Dateien – nicht die Web-App. Bitte die Anwendung nur auf einem Rechner gleichzeitig betreiben.':'Runs on your computer. Polybox syncs files, not the web app. Use only one running computer at a time.',
  'MEIN LERNBEREICH':'MY STUDY SPACE','Fach bearbeiten':'Edit subject',

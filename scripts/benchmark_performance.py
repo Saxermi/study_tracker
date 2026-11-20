@@ -135,12 +135,13 @@ def server_bench(directory, label, args):
             idle=delta(before,counts(proc.pid),time.monotonic()-start)
             # Authenticate outside the measured request burst.
             request("/api/auth/login",{"username":USERNAME,"password":PASSWORD})
-            first=json.loads(request("/api/state"))
+            first=request("/api/state")
             before=counts(proc.pid);start=time.monotonic();size=0
             for _ in range(args.requests):
                 response=request("/api/profile/revision")
                 size+=len(response)
             revision=delta(before,counts(proc.pid),time.monotonic()-start)
+            revision.pop("context_switch_delta",None)  # request threads can exit during the burst
             revision.update(requests=args.requests,response_bytes=size)
             # Simulate a sync client writing a fresh file. Wait for actual
             # processing; this includes intentional quiet/stability latency.
@@ -157,7 +158,7 @@ def server_bench(directory, label, args):
             latency=round(time.monotonic()-start,2)
             if not imported: raise RuntimeError("Inbox import did not complete within 45s")
             print("BACKEND_BENCHMARK "+json.dumps({"version":label,"tasks":args.tasks,"sessions":args.sessions,
-              "idle_no_browser":idle,"revision_burst":revision,"profile_response_bytes":len(json.dumps(first,ensure_ascii=False).encode()),
+              "idle_no_browser":idle,"revision_burst":revision,"profile_response_bytes":len(first),
               "filesystem_microbenchmark":fs,"inbox_import_seconds_including_verification":latency,"imported":imported}),flush=True)
         finally:
             proc.terminate()
