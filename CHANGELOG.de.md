@@ -1,5 +1,12 @@
 # Changelog (Deutsch)
 
+## Unreleased — energiesparender Hintergrundbetrieb
+
+- Sichtbarkeitsabhängige Timer-Anzeige, Cache für abgeschlossene Lernzeiten und Rendering nur der sichtbaren Seite; unveränderte Uhr-/Anwesenheitsanzeigen beibehalten.
+- Revisionsabfragen ohne Überlappung (15 s sichtbar, 60 s versteckt), sofortige Aktualisierung bei Rückkehr, Timeout/Backoff und Schutz vor veralteten Antworten.
+- Konfigurierbare Inbox-Abfrage (30 s Leerlauf/4 s aktiv), kontendateibezogener Metadaten-Cache, robustere Revision und keine Profil-Neuschreibung bei identischer Batch-ID. Weniger HTTP-Leerlauf-Wakeups.
+- Reproduzierbare Vorher-/Nachher-Benchmarks, zweisprachige Dokumentation und Regressionstests. Zeitstempel, Profile und Importformat bleiben kompatibel.
+
 ## 4.4 — Import-Assistent mit geprüften Fach- und Hauptaufgaben-IDs
 
 - Import-Assistent direkt in Einstellungen mit Fach- und optionaler Hauptaufgabenauswahl.

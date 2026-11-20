@@ -1,0 +1,35 @@
+name: Performance benchmark
+on:
+  pull_request:
+    paths:
+      - 'scripts/benchmark_frontend.cjs'
+      - 'scripts/benchmark_performance.py'
+      - '.github/workflows/performance.yml'
+  workflow_dispatch:
+    inputs:
+      baseline:
+        description: 'Pre-optimization commit SHA'
+        required: true
+        default: 'abff5db13679775d32db5ae4d8fd909ec377343d'
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Baseline checkout
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || inputs.baseline }}
+        run: git worktree add --detach "$RUNNER_TEMP/studytracker-before" "$BASE"
+      - name: Frontend execution benchmark (simulated DOM)
+        run: TZ=Europe/Zurich node scripts/benchmark_frontend.cjs "$RUNNER_TEMP/studytracker-before" 60
+      - name: Linux process, filesystem and incoming-file benchmark
+        run: python scripts/benchmark_performance.py "$RUNNER_TEMP/studytracker-before" --seconds 12 --requests 100

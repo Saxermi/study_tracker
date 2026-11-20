@@ -7,7 +7,7 @@
 1. E-Mail oder Übungsblatt mit [diesem Prompt](../prompts/email-to-tasks.de.md) an ChatGPT/einen autorisierten Agenten geben.
 2. Ein **einziges gültiges Import-JSON** im Format `studytracker.tasks.v1` erzeugen lassen. Beispiel: [`examples/email-task-import.json`](../examples/email-task-import.json).
 3. Als Datei speichern und unter **Einstellungen → Import → Aufgaben-JSON importieren** auswählen oder in den privaten synchronisierten Ordner `data/inbox/<benutzername>/` ablegen.
-4. StudyTracker laufen lassen. Alle etwa vier Sekunden werden stabile `.json`-Dateien geprüft, atomar importiert und nach `processed/` bzw. `rejected/` verschoben.
+4. StudyTracker laufen lassen. Im Leerlauf etwa alle 30 Sekunden (bei Aktivität alle 4 Sekunden) werden stabile `.json`-Dateien geprüft, atomar importiert und nach `processed/` bzw. `rejected/` verschoben.
 
 ## Beispiel mit eigenständigen Unteraufgaben
 

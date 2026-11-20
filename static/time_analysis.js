@@ -93,6 +93,47 @@
     return {...session,duration_seconds,break_seconds,focus_days:[...focusDays]};
   }
 
+
+  // Session arrays are immutable snapshots from the API. Hold only two calendar
+  // windows per snapshot, and allow old snapshots to be collected. The running
+  // timer is deliberately not part of this cache.
+  const completedWindows=new WeakMap();
+  function completedInWindow(sessions,from,to) {
+    if(!valid(from,to))return [];
+    let windows=completedWindows.get(sessions);
+    if(!windows){windows=new Map();completedWindows.set(sessions,windows)}
+    let entry=windows.get(from);
+    if(!entry||to<entry.computedAt){
+      const stable=[],pending=[],candidates=[];
+      for(const s of sessions){
+        // Saved rows are normally entirely in the past, but manual entries
+        // may end in the future. Never freeze a partially elapsed saved row.
+        let bound=-Infinity;
+        for(const span of focusSpans(s,to))bound=Math.max(bound,span.end);
+        for(const b of s.breaks||[]){const end=milliseconds(b.ended_at);if(Number.isFinite(end))bound=Math.max(bound,end)}
+        if(Number(s.break_seconds)>0){
+          const start=milliseconds(s.started_at),end=milliseconds(s.ended_at);
+          if(Number.isFinite(end))bound=Math.max(bound,end);
+          if(Number.isFinite(start))bound=Math.max(bound,start+1000*((Number(s.duration_seconds)||0)+Number(s.break_seconds)));
+        }
+        if(bound<=from)continue;
+        candidates.push(s);
+        if(bound>to){pending.push(s);continue}
+        const row=clipSession(s,from,to);if(row)stable.push(row);
+      }
+      entry={stable,pending,candidates,computedAt:to};
+      windows.delete(from);windows.set(from,entry);
+      while(windows.size>2)windows.delete(windows.keys().next().value);
+    }
+    return entry.stable.concat(entry.pending.map(s=>clipSession(s,from,to)).filter(Boolean));
+  }
+
+  function completedCandidates(sessions,from,to){
+    if(!valid(from,to))return [];
+    completedInWindow(sessions,from,to);
+    return completedWindows.get(sessions).get(from).candidates.slice();
+  }
+
   function accumulate(sessions, view='week-average', nowMs=Date.now()) {
     const isRecent = view === '24' || view === '48';
     const isToday = view === 'today';
@@ -135,5 +176,5 @@
       startHour:recentStartHour,
       computedAt:nowMs};
   }
-  return {focusSpans, clipSession, accumulate, mondayKey};
+  return {focusSpans, clipSession, completedInWindow, completedCandidates, accumulate, mondayKey};
 });

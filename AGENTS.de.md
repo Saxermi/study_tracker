@@ -77,7 +77,7 @@ Weitere Schlüssel sind nicht erlaubt. Keine erfundenen Felder `status`, `comple
 
 ## Speichern und Importieren
 
-Erzeuge eine UTF-8-Datei `*.json` im **privaten** synchronisierten Ordner `data/inbox/<benutzername>/`. Die Anwendung muss laufen. Sie prüft den Eingang ungefähr alle vier Sekunden, wartet auf vollständige Dateien und verschiebt erfolgreiche Importe nach `processed/`, fehlerhafte nach `rejected/` mit Fehlerhinweis. Ein erneuter Import derselben `batch_id`/`external_id` erzeugt keine Duplikate.
+Erzeuge eine UTF-8-Datei `*.json` im **privaten** synchronisierten Ordner `data/inbox/<benutzername>/`. Die Anwendung muss laufen. Sie prüft den Eingang im Leerlauf etwa alle 30 Sekunden (bei Aktivität alle 4 Sekunden), wartet auf vollständige Dateien und verschiebt erfolgreiche Importe nach `processed/`, fehlerhafte nach `rejected/` mit Fehlerhinweis. Ein erneuter Import derselben `batch_id`/`external_id` erzeugt keine Duplikate.
 
 Schreibe zuerst eine temporäre Datei ohne `.json` und benenne sie erst nach vollständigem Schreiben um. Alternativ:
 
