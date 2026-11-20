@@ -30,6 +30,35 @@ Ziel ist weniger unnötige Arbeit, nicht die Änderung von Linux-Energieeinstell
 
 Ideale Raten ohne Browser-Drosselung, Request-Laufzeiten, Sichtbarkeitswechsel und Profiländerungen. Die ursprünglich angeforderte Hintergrundfrequenz ist nicht zwingend die ausgeführte Frequenz. Ein HTTP-Timeout ist kein Hardware-Wakeup. Im sichtbaren Leerlauf prüft der Polling-Loop noch Datum und zeitabhängige Anwesenheit; keine zusätzliche Sekundenuhr.
 
+### Gemessener Vorher-/Nachher-Vergleich — Linux-CI, 20. November 2026
+
+Basis `abff5db`, Benchmark-Commit `89dc794`. [Erfolgreicher Benchmark-Lauf #44762074271](https://github.com/Saxermi/study_tracker/actions/runs/44762074271). Einzelmessung auf einem gehosteten Linux-Runner, nicht auf dem Laptop des Benutzers. JS-Messung der Uhr-/Heute-Statistik über simulierte 60 Sekunden; Diagramme, Anwesenheit und reales Browser-Rendering sind nicht Teil dieses Mikrobenchmarks.
+
+| Szenario (60 simulierte Sekunden) | Vorher JS | Nachher JS | Simulierte DOM-Zuweisungen |
+|---|---:|---:|---:|
+| 1.000 Aufgaben / 5.000 Sessions, sichtbar, Leerlauf | 293,33 ms | 0,09 ms | 420 → 0 |
+| Gleiches Profil, sichtbarer aktiver Timer | 328,78 ms | 0,74 ms | 420 → 63 |
+| Gleiches Profil, versteckter aktiver Timer | 266,97 ms | <0,01 ms | 420 → 0 |
+| 5.000 Aufgaben / 20.000 Sessions, sichtbar, Leerlauf | 1.039,66 ms | <0,01 ms | 420 → 0 |
+| Großes Profil, sichtbarer aktiver Timer | 1.097,18 ms | 0,46 ms | 420 → 63 |
+| Großes Profil, versteckter aktiver Timer | 1.094,63 ms | <0,01 ms | 420 → 0 |
+
+0,00 ms bedeutet unterhalb der Ausgabeauflösung, keine buchstäblich gemessene Null-CPU-Last. Beim sichtbaren Timer weiterhin 60 Anzeige-Callbacks, aber nur ein statt 60 Statistikaufrufen. Beim großen aktiven Profil erster Heute-Statistikaufruf 28,10 ms vorher/25,13 ms nachher. Der Hauptgewinn liegt bei der Wiederholung, nicht beim einmaligen Laden.
+
+| Echter Server/Dateisystem (1.000 / 5.000) | Vorher | Nachher |
+|---|---:|---:|
+| 12 s Leerlauf ohne Browser, Prozess-CPU | 10 ms | unter 10 ms Messauflösung |
+| Leerlauf, beobachtete Thread-Kontextwechsel | 26 | 2 |
+| Leerlauf-RSS | 29.444 KiB | 29.660 KiB |
+| 100 authentifizierte Revisionsabfragen, Laufzeit | 79 ms | 73 ms |
+| Prozess-CPU derselben Abfragen | 60 ms | 40 ms |
+| 100 leere Inbox-Scans, Prozess-CPU | 11,97 ms | 6,37 ms |
+| Kontendatei-Lese-/mkdir-Aufrufe bei 100 Scans | 100 / 100 | 0 / 0 |
+| stat-/glob-Aufrufe bei 100 Scans | 300 / 100 | 300 / 100 |
+| Neue Datei bis Import und Verifikation | 4,07 s | 22,09 s |
+
+Der erweiterte Revisionstoken benötigt 76 statt 35 Byte, wird aber deutlich seltener abgefragt (sichtbar ca. 18 statt 25 KiB/h reine Antwortdaten). RSS praktisch unverändert; keine pauschale Speichereinsparung behauptet. Die längere Importdauer ist der beabsichtigte Energie-/Latenzkompromiss. Einzelmesswerte schwanken je nach Runner und Zeitpunkt des Dateieingangs.
+
 ### Reproduzierbarer Vergleich
 
 Die Benchmarks verwenden ausschließlich temporäre synthetische Profile, keine persönlichen Daten. Der alte Stand bleibt in einem getrennten Git-Worktree.

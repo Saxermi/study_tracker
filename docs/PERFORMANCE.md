@@ -32,6 +32,35 @@ Steady-state theoretical maximum callbacks/requests per hour, ignoring request d
 
 Idle visible pages still check time-sensitive calendar/attendance state through the polling loop; no extra idle one-second interval. Revision polling may cause one additional full-state request when changed. HTTP timeout counts and inbox scans are not equivalent to hardware wakeups.
 
+### Measured before/after results — Linux CI, 20 November 2026
+
+Baseline `abff5db`, optimization/benchmark commit `89dc794`. [Successful benchmark run #44762074271](https://github.com/Saxermi/study_tracker/actions/runs/44762074271). One sample on a hosted Linux runner; not measurements of the user's laptop. Frontend times measure the clock/Today-statistics functions over 60 simulated seconds, not total dashboard rendering or real browser resource usage (chart, attendance and browser rendering are outside this microbenchmark).
+
+| Workload (60 simulated seconds) | Before: JS elapsed | After: JS elapsed | Mock DOM assignments before → after |
+|---|---:|---:|---:|
+| 1,000 tasks / 5,000 sessions, visible idle | 293.33 ms | 0.09 ms | 420 → 0 |
+| Same profile, visible running timer | 328.78 ms | 0.74 ms | 420 → 63 |
+| Same profile, hidden running timer | 266.97 ms | <0.01 ms | 420 → 0 |
+| 5,000 tasks / 20,000 sessions, visible idle | 1,039.66 ms | <0.01 ms | 420 → 0 |
+| Large profile, visible running timer | 1,097.18 ms | 0.46 ms | 420 → 63 |
+| Large profile, hidden running timer | 1,094.63 ms | <0.01 ms | 420 → 0 |
+
+Values reported as 0.00 ms by the script are below the reporting resolution, not proof of literally zero CPU. The visible running-timer loop executed 60 display callbacks both before and after; Today-statistics calls fell from 60 to one. No claim about GPU or whole-appliance power is implied. Initial large-profile active Today-statistics calculation was 28.10 ms before and 25.13 ms after; periodic work, not every initial load, is the main win.
+
+| Real server / filesystem workload (1,000 / 5,000) | Before | After |
+|---|---:|---:|
+| Idle sample, no browser (12 s): process CPU | 10 ms | below 10 ms accounting resolution |
+| Idle sample: observed thread context-switch delta | 26 | 2 |
+| Idle server RSS | 29,444 KiB | 29,660 KiB |
+| 100 authenticated revision GETs, elapsed | 79 ms | 73 ms |
+| Same burst, server process CPU | 60 ms | 40 ms |
+| 100 warmed empty inbox scans, process CPU | 11.97 ms | 6.37 ms |
+| Account file reads / mkdir calls in 100 scans | 100 / 100 | 0 / 0 |
+| Stat calls / glob calls in 100 scans | 300 / 100 | 300 / 100 |
+| New file arrival through successful import + verification | 4.07 s | 22.09 s |
+
+The new revision string includes inode/ctime information, increasing the measured revision payload from 35 to 76 bytes, while substantially lowering request frequency. At 240 visible requests/hour, the response body traffic is still only about 18 KiB/hour, versus 25 KiB/hour previously (excluding headers and changed state). RSS is essentially unchanged; no broad memory-reduction claim. The import delay is the intended energy/latency trade-off. Timing and CPU measurements vary with the runner, scheduling and file-arrival phase.
+
 ### Reproduce the benchmark
 
 Use a clean worktree of the exact pre-optimization commit; never benchmark by switching your live synced profile back and forth. The scripts allocate temporary synthetic accounts and profiles and never operate on your live data. Linux /proc, Python 3.10+, and Node 18+ are enough.
