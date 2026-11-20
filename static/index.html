@@ -14,6 +14,7 @@
   <script src="/time_analysis.js" defer></script>
   <script src="/exercise_review_import.js" defer></script>
   <script src="/import_wizard.js" defer></script>
+  <script src="/performance.js" defer></script>
   <script src="/app.js" defer></script>
   <script src="/rich_feedback.js" defer></script>
   <script src="/feedback_insights.js" defer></script>
@@ -50,7 +51,7 @@
         <section id="page-overview" class="page visible">
           <div class="page-heading"><div><div class="eyebrow">DEIN PERSÖNLICHES LERNCOCKPIT</div><h1>Dein Lernen. <span>Im Blick.</span></h1><p>Ein guter Plan, klare Zahlen und Zeit für echte Pausen.</p></div><button class="btn outline" id="overview-entry"><span data-icon="plus"></span> Zeit nachtragen</button></div>
           <div class="hero-grid">
-            <article class="focus-card"><div class="focus-top"><span class="focus-label"><i></i> DEINE FOKUSZEIT</span><span data-icon="timer"></span></div><h2 id="focus-heading">Bereit für deine<br><em>nächste Session?</em></h2><div id="focus-clock" class="focus-clock">00:00:00</div><div class="timer-sub"><span>Fokus <strong id="focus-amount">0 min</strong></span><span>Pause <strong id="break-amount">0 min</strong></span></div>
+            <article class="focus-card"><div class="focus-top"><span class="focus-label"><i></i> DEINE FOKUSZEIT</span><span data-icon="timer"></span></div><h2 id="focus-heading">Bereit für deine<br><em>nächste Session?</em></h2><div id="focus-clock" data-no-translate class="focus-clock">00:00:00</div><div class="timer-sub"><span>Fokus <strong id="focus-amount" data-no-translate>0 min</strong></span><span>Pause <strong id="break-amount" data-no-translate>0 min</strong></span></div>
               <div id="timer-inputs"><div class="timer-fields"><select id="timer-subject" aria-label="Timer-Fach"></select><select id="timer-task" aria-label="Timer-Aufgabe"><option value="">Ohne Aufgabe</option></select></div><input id="timer-title" maxlength="180" placeholder="Woran arbeitest du? (optional)"><select id="timer-category" aria-label="Lernkategorie" title="Lernkategorie"><option value="">Ohne Kategorie</option></select></div>
               <div id="timer-active-label" class="active-label" hidden></div>
               <div class="timer-buttons"><button class="btn white" id="timer-start"><span data-icon="play"></span> Fokus starten</button><button class="btn white" id="timer-break" hidden><span data-icon="coffee"></span> Pause starten</button><button class="btn white" id="timer-break-end" hidden><span data-icon="play"></span> Pause beenden</button><button class="btn white" id="timer-pause" hidden><span data-icon="pause"></span> Unterbrechen</button><button class="btn white" id="timer-resume" hidden><span data-icon="play"></span> Fortsetzen</button><button class="btn ghost-on-dark" id="timer-stop" hidden>Session speichern <span data-icon="check"></span></button><button class="btn text-on-dark" id="timer-discard" hidden title="Verwerfen"><span data-icon="trash"></span></button></div>
