@@ -62,3 +62,7 @@ Return **one copyable fenced JSON code block** (```json ... ```) with no surroun
 ## Mandatory JSON field types across every agent prompt
 
 All seven source playbooks and every in-app generated import prompt include the complete [typed import contract](../prompts/task-import-contract.md): exact keys, strings, integers, dates, enum values, array/length limits, and a valid example. In particular, `planned_minutes` is an integer whereas `priority` is one of the strings `low|normal|high`. JSON files themselves contain no Markdown fences.
+
+## Paste the agent response directly
+
+Open **Kanban → Import tasks** (or Settings → Import assistant), copy the instructions, and give them to the agent. Paste its response in **Paste agent response** and click **Import pasted JSON**. Raw JSON and a single fenced JSON code block are both accepted. No download is required. The same server-side validation, ID checks and duplicate detection as file upload apply; failed imports leave the text in the input so you can correct it. File upload and the Polybox inbox remain available.

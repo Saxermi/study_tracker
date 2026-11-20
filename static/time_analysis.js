@@ -57,6 +57,42 @@
     return candidates.map(s => ({...s, factor, estimated:true}));
   }
 
+
+  /** Return only the part of a session that falls inside [from, to).
+   * Active timers are supported. The returned row is transient, not persisted.
+   */
+  function clipSession(session, from, to) {
+    if (!session || !valid(from, to)) return null;
+    let duration_seconds=0, break_seconds=0;
+    const focusDays=new Set();
+    for (const span of focusSpans(session,to)) {
+      const start=Math.max(from,span.start),end=Math.min(to,span.end);
+      if (!valid(start,end)) continue;
+      const seconds=(end-start)/1000*(span.factor??1);
+      if (seconds<=0) continue;
+      duration_seconds+=seconds;
+      // Use local calendar days, not 24-hour increments (DST).
+      const day=new Date(start);day.setHours(0,0,0,0);
+      while(day.getTime()<end){focusDays.add(day.getTime());day.setDate(day.getDate()+1);}
+    }
+    const overlap=(start,end)=>valid(start,end)?Math.max(0,Math.min(end,to)-Math.max(start,from))/1000:0;
+    let hasRecordedBreak=false;
+    for (const b of session.breaks||[]) {
+      const start=milliseconds(b.started_at),end=milliseconds(b.ended_at);
+      if(valid(start,end)){hasRecordedBreak=true;break_seconds+=overlap(start,end);}
+    }
+    if(session.mode==='break')break_seconds+=overlap(milliseconds(session.mode_since),to);
+    // Legacy saved rows may contain a break total but no timestamped breaks.
+    // Preserve their total within a full period, estimate partial overlaps.
+    if(!session.mode&&!hasRecordedBreak&&Number(session.break_seconds)>0){
+      const start=milliseconds(session.started_at),wallEnd=milliseconds(session.ended_at);
+      const end=valid(start,wallEnd)?wallEnd:start+1000*((Number(session.duration_seconds)||0)+Number(session.break_seconds));
+      if(valid(start,end))break_seconds=Number(session.break_seconds)*overlap(start,end)/((end-start)/1000);
+    }
+    if(duration_seconds<=0&&break_seconds<=0)return null;
+    return {...session,duration_seconds,break_seconds,focus_days:[...focusDays]};
+  }
+
   function accumulate(sessions, view='week-average', nowMs=Date.now()) {
     const isRecent = view === '24' || view === '48';
     const isToday = view === 'today';
@@ -99,5 +135,5 @@
       startHour:recentStartHour,
       computedAt:nowMs};
   }
-  return {focusSpans, accumulate, mondayKey};
+  return {focusSpans, clipSession, accumulate, mondayKey};
 });

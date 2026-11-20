@@ -99,7 +99,7 @@
       'Jede importierte Aufgabe MUSS genau `subject_id` aus diesem Ziel verwenden. Den Modul-/Fachnamen nur als Beschreibung verwenden. Die ID nie erfinden, ändern oder aus der Schreibweise ableiten.',
       parent?'Erstelle NUR direkte Teilaufgaben der ausgewählten Hauptaufgabe und setze `parent_id` auf deren exakte ID. Keine weiteren Ebenen.':'Für eine neu erzeugte Hauptaufgabe mit Teilaufgaben: separate Objekte mit `external_id` für die Hauptaufgabe und `parent_external_id` für jedes Kind. Unteraufgaben NIE als eingebettetes Array angeben.',
       '', '## Import-Vertrag (gültiges UTF-8 JSON)',
-      '- Gib EINEN kopierbaren JSON-Codeblock zurück, ohne weiteren Text. Speichere nur den JSON-Inhalt ohne Codezäune als .json-Datei. `format` muss `studytracker.tasks.v1` lauten.',
+      '- Gib EINEN kopierbaren JSON-Codeblock zurück, ohne weiteren Text. Der Benutzer kann den Block direkt im Import-Assistenten einfügen. Beim Speichern als .json-Datei nur den Inhalt ohne Codezäune speichern. `format` muss `studytracker.tasks.v1` lauten.',
       '- `batch_id` (1–100 Zeichen) und jede `external_id` (1–160 Zeichen) müssen stabil und eindeutig aus einer zuverlässigen Quellkennung gebildet werden. Beim erneuten Import dieselben IDs verwenden; keine zufällige neue ID für dieselbe Quelle.',
       '- `tasks`: 1–150 eigenständige Aufgaben. Jedes Element braucht `external_id`, `subject_id` und `title`.',
       '- Optionale Felder: `description`, `planned_minutes` (positive Ganzzahl oder null), `priority` (`low`, `normal`, `high`), `due_date`/`planned_for` (YYYY-MM-DD oder null), `tags` (maximal 12 Namen), `parent_id` ODER `parent_external_id`.',
@@ -115,7 +115,7 @@
       'Every imported task MUST use the exact `subject_id` above. The human-readable subject name is informational. Never guess, translate or invent an internal ID.',
       parent?'Create ONLY direct children of the chosen existing parent task using its exact `parent_id`. Do not nest deeper.':'For a newly created parent and subtasks, emit separate task objects: give the parent an `external_id`, and each child a matching `parent_external_id`. NEVER nest subtasks in an array.',
       '', '## Task import contract (valid UTF-8 JSON)',
-      '- Return ONE copyable fenced JSON code block, with no prose. Copy its JSON contents (without fences) to a .json file. Set `format` to `studytracker.tasks.v1`.',
+      '- Return ONE copyable fenced JSON code block, with no prose. The user can paste the block directly into the Import Assistant. If saving a .json file, save only the JSON contents without fences. Set `format` to `studytracker.tasks.v1`.',
       '- `batch_id` (1–100 chars) and `external_id` (1–160 chars) must be deterministic, stable identifiers derived from a reliable source ID. Reuse them on retries; never create random replacement IDs for the same source.',
       '- `tasks`: 1–150 separate objects. Every item must contain `external_id`, `subject_id`, and `title`.',
       '- Optional: `description`, `planned_minutes` (positive integer or null), `priority` (`low`, `normal`, `high`), `due_date`/`planned_for` (YYYY-MM-DD or null), `tags` (up to 12 tag names), `parent_id` OR `parent_external_id`.',
@@ -131,5 +131,21 @@
     lines.splice(exampleAt,0,de?EXACT_TASK_FIELDS_DE:EXACT_TASK_FIELDS_EN,'');
     return lines.join('\n');
   }
-  return {SOURCES,sourceKeys,sourceOptions,build};
+  /** Parse the same envelope accepted by file upload. Never infer or rewrite IDs. */
+  function parseTaskImport(raw) {
+    if(typeof raw!=='string'||!raw.trim())throw new Error('Paste a JSON object / JSON-Objekt einfügen.');
+    if(new TextEncoder().encode(raw).length>8*1024*1024)throw new Error('JSON exceeds 8 MiB / JSON ist größer als 8 MiB.');
+    let text=raw.trim();
+    const fenced=/^```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*$/i.exec(text);
+    if(fenced)text=fenced[1].trim();
+    const value=JSON.parse(text);
+    if(!value||typeof value!=='object'||Array.isArray(value)||value.format!=='studytracker.tasks.v1')
+      throw new Error('Expected format studytracker.tasks.v1 / Format studytracker.tasks.v1 erwartet.');
+    if(typeof value.batch_id!=='string'||!value.batch_id.trim()||value.batch_id.trim().length>100)
+      throw new Error('batch_id must contain 1–100 characters / batch_id: 1–100 Zeichen.');
+    if(!Array.isArray(value.tasks)||value.tasks.length<1||value.tasks.length>150)
+      throw new Error('tasks must contain 1–150 objects / tasks: 1–150 Objekte.');
+    return value; // Per-task validation, allocation and idempotence stay on the server.
+  }
+  return {SOURCES,sourceKeys,sourceOptions,build,parseTaskImport};
 });

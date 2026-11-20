@@ -62,3 +62,7 @@ Gib im Chat einen **kopierbaren JSON-Codeblock** (```json ... ```) ohne weiteren
 ## Verbindliche JSON-Feldtypen für alle Agent-Prompts
 
 Jede der sieben Quellenanleitungen und jeder im UI erzeugte Import-Prompt enthält die vollständigen [JSON-Felddefinitionen](../prompts/task-import-contract.de.md): feste Schlüssel, Strings, Ganzzahlen, Datumsformat, Enum-Werte, Listen- und Längenbegrenzungen sowie ein gültiges Beispiel. Besonders `planned_minutes` ist eine Ganzzahl und `priority` einer der Strings `low|normal|high`. JSON-Dateien enthalten keine Markdown-Codezäune.
+
+## Agenten-Antwort direkt einfügen
+
+Öffne **Kanban → Aufgaben importieren** (oder Einstellungen → Import-Assistent), kopiere die Anleitung und gib sie dem Agenten. Füge dessen Antwort unter **Bot-Antwort direkt einfügen** ein und klicke **JSON direkt importieren**. Akzeptiert werden rohes JSON und ein einzelner umschlossener JSON-Codeblock. Ein Download ist nicht nötig. Serverprüfung, ID-Prüfung und Duplikaterkennung sind dieselben wie beim Datei-Upload; bei Fehlern bleibt der Text zur Korrektur erhalten. Datei-Upload und Polybox-Eingangsordner stehen weiterhin zur Verfügung.
