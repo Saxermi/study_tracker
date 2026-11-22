@@ -52,6 +52,7 @@ test('week is default subject-chart range, and break seconds are never added to 
  const week=[{subject_id:'num',duration_seconds:3600,break_seconds:1800}],old=[{subject_id:'num',duration_seconds:7200,break_seconds:0}];
  const els=new Map(),select=id=>{if(!els.has(id))els.set(id,{value:'week',textContent:'',innerHTML:'',style:{}});return els.get(id)};
  const c={state:{subjects:[{id:'num',name:'NumCSE',color:'#123456'}]},$:select,
+  setText:(id,v)=>{select(id).textContent=String(v)},setHTML:(id,v)=>{select(id).innerHTML=v},
   sessionForWeek:()=>week,recentSessions:()=>week.concat(old),todaySessions:()=>[],fmt:s=>s/3600+' h',niceTooltip:x=>x,escapeHtml:x=>String(x)};
  vm.runInNewContext(app.slice(app.indexOf('function periodSessions(period,'),app.indexOf('function totalSeconds(')),c);
  vm.runInNewContext(app.slice(app.indexOf('function renderDistribution(){'),app.indexOf('function renderTodayTotals(){')),c);

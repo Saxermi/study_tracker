@@ -25,6 +25,8 @@ jobs:
       - name: JavaScript syntax and regression tests
         run: |
           node --check static/app.js
+          node --check static/performance.js
+          node --check static/time_analysis.js
           node --check static/productivity.js
           node --check static/weekly_planner.js
           node --check static/i18n.js

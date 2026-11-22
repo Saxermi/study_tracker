@@ -7,7 +7,7 @@
 1. Copy an email or assignment sheet to ChatGPT or another authorized agent using [the English prompt](../prompts/email-to-tasks.md).
 2. Ask for **only** an import JSON object in the stable `studytracker.tasks.v1` format. Example: [`examples/email-task-import.json`](../examples/email-task-import.json).
 3. Save the JSON as a file and either upload it in **Settings → Import → Import tasks JSON** or put it into the private local sync directory `data/inbox/<username>/`.
-4. Keep StudyTracker running. It detects stable `.json` files every ~4 seconds, validates them as an atomic batch, adds only unseen task IDs and moves processed/rejected files accordingly.
+4. Keep StudyTracker running. It checks for stable `.json` files every ~30 seconds when idle (4 seconds during activity), validates them as an atomic batch, adds only unseen task IDs and moves processed/rejected files accordingly.
 
 ## Example with independent subtasks
 

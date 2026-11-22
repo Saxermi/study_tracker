@@ -1,4 +1,104 @@
-# Speicher- und Performance-Prüfung (StudyTracker 4.3)
+# Performance und Energieeffizienz
+
+## Energiesparender Hintergrundbetrieb (aktuell)
+
+Ziel ist weniger unnötige Arbeit, nicht die Änderung von Linux-Energieeinstellungen. Lernzeit und Pausen werden anhand von Zeitstempeln erfasst; die Frequenz der Browser-Anzeige, Tab-Drosselung und das Neuladen der Seite verändern diese Berechnung nicht. Wie bisher zählt ein laufender Timer die verstrichene Zeit auch im Standby weiter; vor dem Schlafmodus pausieren, wenn diese Zeit nicht als Lernzeit gelten soll.
+
+### Änderungen
+
+- **Uhr:** sekündliche Anzeige nur bei laufender Fokus-/Pausenzeit und sichtbarer Uhr (Übersicht oder Fokusoverlay). Keine sekündlichen Callbacks im Leerlauf, bei unterbrochenem Timer, auf anderen Seiten oder verstecktem Tab. Bei Rückkehr sofort aktualisieren; unveränderte Zahlen nicht neu schreiben.
+- **Statistik:** abgeschlossene Sessions pro Profil-Snapshot und Kalenderfenster zwischenspeichern, laufende Session separat zurechnen. Cache bei neuen Session-Daten und Datumsgrenzen erneuern; zukünftige manuelle Sessions und rückwärts laufende Systemzeit berücksichtigen. Keine sekündlichen Historien-Scans; aktive sichtbare Statistik maximal einmal pro Minute bzw. sofort bei Profiländerung/Rückkehr aktualisieren.
+- **Rendering:** nur sichtbare Seite neu zeichnen; bei verstecktem Tab bis zur Rückkehr warten. Indizes pro Snapshot wiederverwenden. Anwesenheitsabfrage nur in Heute/Woche, Zeitzonen-Formatter wiederverwenden und identisches Markup beibehalten. Uhr-Mutationen lösen keine vollständige Übersetzung aus. Keine dauerhaften CSS-Animationen festgestellt; kurze UI-Übergänge und statische Filter bleiben erhalten.
+- **HTTP:** 15 s sichtbar, 60 s versteckt; sofortige Abfrage bei Rückkehr. Keine überlappenden Synchronisierungsabfragen, 10 s Zeitlimit, exponentieller Backoff bis 5 min. Ganzes Profil nur bei geänderter Revision. Veraltete Antworten nach Mutationen/Kontowechsel verwerfen; keine Abfragen nach Abmeldung.
+- **Backend:** Inbox-Abfrage adaptiv 30 s im Leerlauf, 4 s bei Aktivität. Drei Sekunden Dateiruhe bleiben erforderlich; zusätzliche Prüfung nach dem Lesen. Kleine Kontendatei wird anhand von dev/inode/Größe/mtime/ctime und defensiven Kopien sicher zwischengespeichert. Keine erneute Profildatei-Schreibung bei identischer Batch-ID. Revision erkennt auch Dateiersatz. HTTP-Server wartet bis zu 10 s auf den nächsten internen Leerlauf-Check, eingehende Anfragen wecken ihn sofort.
+- **Mehrere Tabs:** separate kleine Revisionsabfragen. Keine BroadcastChannel-Leader-Wahl: Drosselung im Hintergrund, Ausfall des führenden Tabs und Kontowechsel erschweren zuverlässige Synchronisation.
+
+`STUDYTRACKER_INBOX_IDLE_SECONDS=4` stellt die frühere Leerlauf-Latenz wieder her. Standard 30 s, gültiger Bereich 4–300 s. Dateien können bis etwa zum nächsten Leerlauf-Intervall plus Wartezeit auf Stabilität und Sync-Latenz benötigen. Direktes Einfügen/Hochladen bleibt sofort möglich.
+
+### Rechnerische Aktivitätsraten (keine Hardwaremessung)
+
+| Vorgang pro Stunde | Vorher | Nachher |
+|---|---:|---:|
+| Sekundenuhr, sichtbarer Leerlauf | 3.600 | 0 |
+| Sekundenuhr, sichtbarer aktiver Timer | 3.600 | 3.600 (nur Anzeige) |
+| Sekundenuhr, versteckter aktiver Timer | 3.600 | 0 |
+| Revisionsabfragen, sichtbarer Tab | 720 | 240 |
+| Revisionsabfragen, versteckter Tab | 720 | 60 |
+| Revisionsabfragen, 1 sichtbarer + 2 versteckte Tabs | 2.160 | 360 |
+| Leere Inbox-Scans | 900 | 120 |
+| HTTP-Wartezeitabläufe ohne Anfragen | 7.200 | 360 |
+
+Ideale Raten ohne Browser-Drosselung, Request-Laufzeiten, Sichtbarkeitswechsel und Profiländerungen. Die ursprünglich angeforderte Hintergrundfrequenz ist nicht zwingend die ausgeführte Frequenz. Ein HTTP-Timeout ist kein Hardware-Wakeup. Im sichtbaren Leerlauf prüft der Polling-Loop noch Datum und zeitabhängige Anwesenheit; keine zusätzliche Sekundenuhr.
+
+### Gemessener Vorher-/Nachher-Vergleich — Linux-CI, 20. November 2026
+
+Basis `abff5db`, Benchmark-Commit `89dc794`. [Erfolgreicher Benchmark-Lauf #44762074271](https://github.com/Saxermi/study_tracker/actions/runs/44762074271). Einzelmessung auf einem gehosteten Linux-Runner, nicht auf dem Laptop des Benutzers. JS-Messung der Uhr-/Heute-Statistik über simulierte 60 Sekunden; Diagramme, Anwesenheit und reales Browser-Rendering sind nicht Teil dieses Mikrobenchmarks.
+
+| Szenario (60 simulierte Sekunden) | Vorher JS | Nachher JS | Simulierte DOM-Zuweisungen |
+|---|---:|---:|---:|
+| 1.000 Aufgaben / 5.000 Sessions, sichtbar, Leerlauf | 293,33 ms | 0,09 ms | 420 → 0 |
+| Gleiches Profil, sichtbarer aktiver Timer | 328,78 ms | 0,74 ms | 420 → 63 |
+| Gleiches Profil, versteckter aktiver Timer | 266,97 ms | <0,01 ms | 420 → 0 |
+| 5.000 Aufgaben / 20.000 Sessions, sichtbar, Leerlauf | 1.039,66 ms | <0,01 ms | 420 → 0 |
+| Großes Profil, sichtbarer aktiver Timer | 1.097,18 ms | 0,46 ms | 420 → 63 |
+| Großes Profil, versteckter aktiver Timer | 1.094,63 ms | <0,01 ms | 420 → 0 |
+
+0,00 ms bedeutet unterhalb der Ausgabeauflösung, keine buchstäblich gemessene Null-CPU-Last. Beim sichtbaren Timer weiterhin 60 Anzeige-Callbacks, aber nur ein statt 60 Statistikaufrufen. Beim großen aktiven Profil erster Heute-Statistikaufruf 28,10 ms vorher/25,13 ms nachher. Der Hauptgewinn liegt bei der Wiederholung, nicht beim einmaligen Laden.
+
+| Echter Server/Dateisystem (1.000 / 5.000) | Vorher | Nachher |
+|---|---:|---:|
+| 12 s Leerlauf ohne Browser, Prozess-CPU | 10 ms | unter 10 ms Messauflösung |
+| Leerlauf, beobachtete Thread-Kontextwechsel | 26 | 2 |
+| Leerlauf-RSS | 29.444 KiB | 29.660 KiB |
+| 100 authentifizierte Revisionsabfragen, Laufzeit | 79 ms | 73 ms |
+| Prozess-CPU derselben Abfragen | 60 ms | 40 ms |
+| 100 leere Inbox-Scans, Prozess-CPU | 11,97 ms | 6,37 ms |
+| Kontendatei-Lese-/mkdir-Aufrufe bei 100 Scans | 100 / 100 | 0 / 0 |
+| stat-/glob-Aufrufe bei 100 Scans | 300 / 100 | 300 / 100 |
+| Neue Datei bis Import und Verifikation | 4,07 s | 22,09 s |
+
+Der erweiterte Revisionstoken benötigt 76 statt 35 Byte, wird aber deutlich seltener abgefragt (sichtbar ca. 18 statt 25 KiB/h reine Antwortdaten). RSS praktisch unverändert; keine pauschale Speichereinsparung behauptet. Die längere Importdauer ist der beabsichtigte Energie-/Latenzkompromiss. Einzelmesswerte schwanken je nach Runner und Zeitpunkt des Dateieingangs.
+
+### Reproduzierbarer Vergleich
+
+Die Benchmarks verwenden ausschließlich temporäre synthetische Profile, keine persönlichen Daten. Der alte Stand bleibt in einem getrennten Git-Worktree.
+
+```bash
+git worktree add --detach /tmp/studytracker-before abff5db13679775d32db5ae4d8fd909ec377343d
+TZ=Europe/Zurich node scripts/benchmark_frontend.cjs /tmp/studytracker-before 60
+python3 scripts/benchmark_performance.py /tmp/studytracker-before --seconds 60 --requests 100
+python3 scripts/benchmark_performance.py /tmp/studytracker-before --seconds 60 --tasks 5000 --sessions 20000
+git worktree remove /tmp/studytracker-before
+```
+
+Das Frontend-Skript misst echte JS-Funktionen mit simuliertem DOM und 1.000/5.000 sowie 5.000/20.000 Aufgaben/Sessions. Es meldet JS- und CPU-Zeit, simulierte DOM-Zuweisungen, Callbacks und Heap-Differenz; keine echte Browser-GPU-/RAM-Messung. Der Linux-Test startet die echten Server ohne Browser, misst Prozess-CPU/RSS und beobachtet Kontextwechsel aus /proc, sendet 100 echte authentifizierte Revisionsanfragen, zählt ausgewählte Python-Dateioperationen bei 100 leeren Scans und testet einen echten eingehenden Import. Kontextwechsel sind nur ein Näherungsindikator für Scheduling, keine Hardware-Wakeups. Dateiaufrufe sind keine vollständige Syscall-Zählung. Mehrtab-Raten sind berechnet.
+
+### Auf Ubuntu messen
+
+Gleiche Helligkeit, Browser-Version, Erweiterungen, Netz, Ladezustand und Energieprofil für beide Stände. Mehrmals je 5–10 Minuten messen. Für Akku-Messung Netzteil abziehen und sonstige Hintergrundlast möglichst konstant halten.
+
+```bash
+sudo apt install powertop sysstat lm-sensors
+pgrep -af 'python.*server.py'
+pidstat -u -w -r -p PID 5 60
+sudo powertop --time=60 --html=studytracker-power.html
+sensors
+grep -H . /sys/class/power_supply/BAT*/power_now 2>/dev/null
+grep -H . /sys/class/power_supply/BAT*/energy_now 2>/dev/null
+```
+
+PID durch die Prozessnummer ersetzen. Keine Optionen --auto-tune oder --calibrate verwenden. pidstat zeigt CPU, RSS und Kontextwechsel; PowerTOP zeigt Aktivität/Wakeups und gegebenenfalls geschätzte Leistung. Akkuwerte üblicherweise in µW bzw. µWh; Mittelwerte vergleichen. Falls verfügbar, Energiezähler unter /sys/class/powercap auslesen; unterstützte APU-Domänen hängen von Treiber/Hardware ab. sensors zeigt Temperaturen und ggf. Leistung. Gesamte Akkuentladung lässt sich nicht direkt StudyTracker zuordnen.
+
+Im Browser DevTools → Performance monitor/Network bzw. Browser-Taskmanager vergleichen: ohne Tab, sichtbare Übersicht ohne Timer, mit Timer, versteckter aktiver Tab sowie mehrere Tabs. DevTools vor Akku-Messungen schließen. Timer mit Stoppuhr prüfen, inklusive Wechsel der Sichtbarkeit, Reload, Standby und Wochenwechsel; neuen Inbox-Import separat testen.
+
+### Grenzen
+
+Datei-Schreibvorgänge und geänderte Profilantworten serialisieren weiterhin das ganze JSON. Große sichtbare Kanban-/Historienansichten können viele DOM-Knoten enthalten; Heatmap wird bei Bedarf gerechnet. Der Window-Cache hält maximal zwei Kalenderfenster pro aktivem Session-Snapshot. Kein dauerhaftes Profil-Cache im Backend und keine zusätzliche Datenbank, Abhängigkeit oder OS-Dienst. Portables adaptives Polling statt plattformspezifischem Watcher. Keine Messwerte für echte Akku-Leistung, APU-Energie oder Temperatur ohne Messung auf dem Laptop.
+
+---
+
+## Historischer 4.3-Check (frühere Optimierung)
+
 
 StudyTracker verwendet lokale JSON-Profile, keine separate Datenbank und keine zusätzlichen Python-Pakete. Für persönliches Lerntracking geeignet, nicht für gleichzeitige Schreiber auf mehreren Rechnern.
 

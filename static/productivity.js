@@ -67,7 +67,7 @@
         <button type="button" class="btn outline" id="productivity-focus-exit">Ansicht verlassen</button></div>
       <h2 id="productivity-focus-title">Fokus</h2>
       <p id="productivity-focus-next" class="productivity-focus-next"></p>
-      <div id="productivity-focus-clock" class="productivity-focus-clock" aria-label="Fokuszeit">00:00:00</div>
+      <div id="productivity-focus-clock" data-no-translate class="productivity-focus-clock" aria-label="Fokuszeit">00:00:00</div>
       <p id="productivity-focus-status" class="inside-hint"></p>
       <div id="productivity-focus-actions" class="productivity-focus-actions"></div>
       <label class="productivity-resume-label">Wo weitermachen? (optional)
@@ -168,7 +168,13 @@
   function renderProductivity() {
     if(!state)return;
     ensureShell();
-    if(!shellReady)return;
+    if(!shellReady||document.hidden)return;
+    const opener=$p('#productivity-focus-reopen');
+    if(opener)opener.hidden=!state.active_timer;
+    const setting=$p('#productivity-focus-enabled');
+    if(setting)setting.checked=state.settings?.focus_mode_enabled!==false;
+    renderFocus();
+    if(currentPage!=='today')return;
     const day = localDay(new Date());
     displayedDay = day;
     const plan = state.productivity?.daily_plans?.[day] || {priority_ids:[],capacity_minutes:null};
@@ -193,12 +199,7 @@
         (task.status==='done'?'<span class="productivity-done">Erledigt ✓</span>':
           '<button type="button" class="btn outline" data-task-start="'+safe(task.id)+'" '+(state.active_timer?'disabled':'')+'>Start</button>')+'</div>';
     }).join('');
-    const opener=$p('#productivity-focus-reopen');
-    if(opener)opener.hidden=!state.active_timer;
-    const setting=$p('#productivity-focus-enabled');
-    if(setting)setting.checked=state.settings?.focus_mode_enabled!==false;
     updateBudget();
-    renderFocus();
   }
   function selectedIds() {
     return [...$p('#productivity-priorities').querySelectorAll('select')].map(s=>s.value).filter(Boolean);
@@ -283,12 +284,13 @@
     dialog.showModal();
   }
   function updateProductivityClock(){
-    if(shellReady && state && displayedDay!==localDay(new Date()))renderProductivity();
+    if(document.hidden)return;
     const el=$p('#productivity-focus-clock');
     if(!el||$p('#productivity-focus-overlay')?.hidden||!state?.active_timer)return;
     const seconds=timerTime('focus');
     const pad=n=>String(n).padStart(2,'0');
-    el.textContent=pad(Math.floor(seconds/3600))+':'+pad(Math.floor(seconds/60)%60)+':'+pad(seconds%60);
+    const value=pad(Math.floor(seconds/3600))+':'+pad(Math.floor(seconds/60)%60)+':'+pad(seconds%60);
+    if(el.textContent!==value)el.textContent=value;
   }
   function openFocus(){
     if(!state?.active_timer)return;
@@ -296,11 +298,14 @@
     $p('#productivity-focus-overlay').hidden=false;
     $p('#productivity-focus-exit').focus();
     renderFocus();
+    if(typeof syncClock==='function')syncClock();
   }
   function closeFocus(){
     const el=$p('#productivity-focus-overlay');
     if(el)el.hidden=true;
     draftTask=null;draftNote='';
+    if(typeof updateClock==='function')updateClock();
+    if(typeof syncClock==='function')syncClock();
   }
   async function saveResume(silent=false){
     const taskId=state?.active_timer?.task_id;

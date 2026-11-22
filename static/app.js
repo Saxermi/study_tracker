@@ -18,25 +18,28 @@ const ICONS = {
  play:'<path d="m8 5 11 7-11 7V5Z"/>',pause:'<path d="M8 5v14m8-14v14"/>',coffee:'<path d="M4 8h13v5a6.5 6.5 0 0 1-13 0V8Zm13 1h2a2 2 0 0 1 0 4h-2M3 20h17"/>',check:'<path d="m4 12 5 5L20 6"/>',trash:'<path d="M4 7h16m-13 0 1 13h8l1-13M9 7V4h6v3m-5 3v7m4-7v7"/>',flame:'<path d="M12 22c6 0 8-4 8-9 0-3-2-6-5-8 0 4-2 5-3 6-1-4-3-7-4-8C8 8 4 11 4 15c0 4 3 7 8 7Z"/>',calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18"/>',checklist:'<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m7 9 2 2 3-3m2 1h4M7 16h11"/>',trend:'<path d="m3 17 6-7 4 4 8-9m-6 0h6v6"/>',search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',download:'<path d="M12 3v13m-5-5 5 5 5-5M4 18v3h16v-3"/>',upload:'<path d="M12 17V4M7 9l5-5 5 5M4 17v4h16v-4"/>',tag:'<path d="M12 3H4v8l9 9 8-8-9-9ZM8 8h.01"/>',users:'<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2m3-15a3 3 0 0 1 0 6m1 9v-2a6 6 0 0 0-3-5.2"/>',copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',sparkles:'<path d="m12 3 2 6 6 2-6 2-2 6-2-6-6-2 6-2 2-6Zm7 14v5m-3-2.5h6"/>',shield:'<path d="m12 2 9 4v6c0 5-3 8-9 10-6-2-9-5-9-10V6l9-4Zm-4 10 3 3 5-5"/>',x:'<path d="M6 6l12 12M18 6 6 18"/>',edit:'<path d="M4 20h4l12-12-4-4L4 16v4Z"/>',book:'<path d="M4 4h7c2 0 3 1 3 3v14c0-2-1-3-3-3H4V4Zm10 3c0-2 1-3 3-3h3v14h-3c-2 0-3 1-3 3"/>',chevron:'<path d="m9 6 6 6-6 6"/>'
 };
 const icon = name => svg(ICONS[name] || ICONS.check);
-const hydrateIcons = () => $$('[data-icon]').forEach(el=>{el.innerHTML=icon(el.dataset.icon)});
+const hydrateIcons = () => $$('[data-icon]').forEach(el=>{if(el.dataset.iconRendered!==el.dataset.icon){el.innerHTML=icon(el.dataset.icon);el.dataset.iconRendered=el.dataset.icon}});
 let state = null, user = null, currentPage = 'overview', editId = null, modalKind = null, modalTags = new Set(), modalColor = COLORS[0], taskDefaultStatus = 'todo';
-let showTimerNow = Date.now();
-let lastTimingRefresh=0, lastTodayVisibilityRefresh=0, lastOverviewMinute=null, renderIndex=null;
+let lastOverviewMinute=null, renderIndex=null, indexedState=null;
+let lastUiMinute=null,lastCalendarDay=null,renderPending=false,importNoticePending=false,profileEpoch=0,accountEpoch=0,pendingMutations=0;
+const htmlSources=new WeakMap();
+function setText(id,value){const el=$(id);if(!el)return;const text=String(value);if(el.textContent!==text&&(StudyI18n.language!=='en'||el.textContent!==StudyI18n.translate?.(text)))el.textContent=text}
+function setHTML(id,value){const el=$(id);if(!el)return;if(htmlSources.get(el)!==value){el.innerHTML=value;htmlSources.set(el,value)}}
 let reviewDraft = null, reviewPrompt = '', reviewAppliedJson = '';
 let reviewManualFields = new Set();
 let reviewGptDraft=null, reviewGptCleared=false, profileRevision=null;
 
-const api = async (path, method='GET', body=null) => {
- const opts={method,credentials:'same-origin',headers:body===null?{}:{'Content-Type':'application/json'}};
+const api = async (path, method='GET', body=null, signal=null) => {
+ const opts={method,credentials:'same-origin',headers:body===null?{}:{'Content-Type':'application/json'}};if(signal)opts.signal=signal;
  if(body!==null)opts.body=JSON.stringify(body);
  const res=await fetch(path,opts);let data;
  try{data=await res.json()}catch{throw new Error('Unerwartete Serverantwort')}
- if(!res.ok)throw new Error(data.error || `HTTP ${res.status}`);
+ if(!res.ok){const error=new Error(data.error || `HTTP ${res.status}`);error.status=res.status;throw error}
  return data;
 };
 let toastTimeout;
 function toast(message, error=false){const el=$('#toast');el.textContent=message;el.classList.toggle('error',error);el.classList.add('show');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.remove('show'),4000)}
-async function mutate(path,method='POST',body={}){try{const result=await api(path,method,body);if(result.state){state=result.state;profileRevision=result.revision??profileRevision;renderAll()}return result}catch(e){toast(e.message,true);return null}}
+async function mutate(path,method='POST',body={}){const owner=accountEpoch;profileEpoch++;pendingMutations++;try{const result=await api(path,method,body);if(owner!==accountEpoch)return null;if(result.state){state=result.state;profileRevision=result.revision??profileRevision;renderAll()}return result}catch(e){toast(e.message,true);return null}finally{pendingMutations--;profileEpoch++}}
 async function refresh(){const r=await api('/api/state');state=r.state;user=r.user;profileRevision=r.revision??null;renderAll()}
 function buildRenderIndex(){
  const byTask=new Map(),children=new Map(),seconds=new Map(),bySubject=new Map(),byTag=new Map();
@@ -61,8 +64,9 @@ function completedRootTasks(){return rootTasks().filter(t=>t.status==='done'&&ta
 function dateCutoff(days){if(days==='today')return new Date(new Date().setHours(0,0,0,0));if(days==='all')return new Date('2000-01-01');let d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-Number(days)+1);return d}
 function recentSessions(days){const cutoff=dateCutoff(days);return state.sessions.filter(s=>new Date(s.started_at)>=cutoff)}
 function sessionsInWindow(from,includeActive=true,end=Date.now()){
- const list=state.sessions.slice();if(includeActive&&state.active_timer)list.push({...state.active_timer,live:true});
- return list.map(s=>StudyTime.clipSession(s,from,end)).filter(Boolean);
+ const rows=StudyTime.completedInWindow(state.sessions,from,end);
+ if(includeActive&&state.active_timer){const live=StudyTime.clipSession({...state.active_timer,live:true},from,end);if(live)rows.push(live)}
+ return rows;
 }
 function todaySessions(includeActive=true){
  const end=Date.now(),begin=new Date(end);begin.setHours(0,0,0,0);
@@ -76,8 +80,34 @@ function niceTooltip(text){return escapeHtml(text)}
 function weekStart(now=Date.now()){const d=new Date(now);d.setHours(0,0,0,0);d.setDate(d.getDate()-(d.getDay()+6)%7);return d}
 function sessionForWeek(includeActive=true){const end=Date.now();return sessionsInWindow(weekStart(end).getTime(),includeActive,end)}
 function localTimestamp(){let d=new Date();return dateKey(d)+'T'+pad(d.getHours())+':'+pad(d.getMinutes())}
-function showPage(page){if(!['overview','today','week','done','board','insights','history','subjects','settings'].includes(page))page='overview';currentPage=page;$$('.page').forEach(p=>p.classList.toggle('visible',p.id==='page-'+page));$$('.nav-link').forEach(b=>b.classList.toggle('active',b.dataset.page===page));$('#crumb-current').textContent={overview:'Übersicht',today:'Heute',week:'Woche',done:'Erfolge',board:'Kanban-Board',insights:'Auswertungen',history:'Lernhistorie',subjects:'Fächer & Ziele',settings:'Einstellungen'}[page];$('#sidebar').classList.remove('open');if(location.hash.slice(1)!==page)history.replaceState(null,'','#'+page);if(page==='insights'){renderInsights();renderTiming()}if(page==='board')renderBoard();if(page==='history')renderHistory();if(page==='today')renderToday();if(page==='overview'&&state){renderWeekTotals();renderDistribution()}if(page==='subjects'&&state)renderSubjects();if(page==='week'&&typeof window.renderWeeklyPlanner==='function')window.renderWeeklyPlanner();if(page==='done'&&typeof window.renderAccomplishments==='function')window.renderAccomplishments()}
-function renderAll(){if(!state)return;renderIndex=buildRenderIndex();renderSide();renderSelects();renderTimer();renderOverview();renderToday();if(currentPage==='board')renderBoard();if(currentPage==='insights'){renderInsights();renderTiming()}if(currentPage==='history')renderHistory();renderSubjects();renderSettings();hydrateIcons();if(typeof window.renderProductivity==='function')window.renderProductivity();if(typeof window.renderWeeklyPlanner==='function')window.renderWeeklyPlanner();if(typeof window.renderAccomplishments==='function')window.renderAccomplishments()}
+function showPage(page){if(!['overview','today','week','done','board','insights','history','subjects','settings'].includes(page))page='overview';currentPage=page;$$('.page').forEach(p=>p.classList.toggle('visible',p.id==='page-'+page));$$('.nav-link').forEach(b=>b.classList.toggle('active',b.dataset.page===page));$('#crumb-current').textContent={overview:'Übersicht',today:'Heute',week:'Woche',done:'Erfolge',board:'Kanban-Board',insights:'Auswertungen',history:'Lernhistorie',subjects:'Fächer & Ziele',settings:'Einstellungen'}[page];$('#sidebar').classList.remove('open');if(location.hash.slice(1)!==page)history.replaceState(null,'','#'+page);renderVisiblePage()}
+function renderVisiblePage(){
+ if(!state)return;
+ if(document.hidden){renderPending=true;return}
+ if(currentPage==='overview'){renderTimer();renderOverview()}
+ else if(currentPage==='today')renderToday();
+ else if(currentPage==='board')renderBoard();
+ else if(currentPage==='insights'){renderInsights();renderTiming()}
+ else if(currentPage==='history')renderHistory();
+ else if(currentPage==='subjects')renderSubjects();
+ else if(currentPage==='settings')renderSettings();
+ else if(currentPage==='week')window.renderWeeklyPlanner?.();
+ else if(currentPage==='done')window.renderAccomplishments?.();
+ window.renderProductivity?.();
+ if(currentPage==='today')window.renderLectureAttendance?.(true);
+ if(modalKind==='agent-import')renderAgentBuilder();
+ syncClock();
+}
+function renderAll(){
+ if(!state)return;
+ if(indexedState!==state){renderIndex=null;indexedState=null}
+ if(document.hidden){renderPending=true;syncClock();return}
+ if(indexedState!==state){renderIndex=buildRenderIndex();indexedState=state}
+ renderPending=false;
+ lastCalendarDay=dateKey(new Date());lastUiMinute=Math.floor(Date.now()/60000);
+ setText('#today',new Date().toLocaleDateString(StudyI18n.locale(),{weekday:'long',day:'numeric',month:'long',year:'numeric'}));
+ renderSide();renderSelects();renderVisiblePage();hydrateIcons();
+}
 function renderSide(){const open=state.tasks.filter(t=>t.status!=='done').length;$('#board-side-count').textContent=open;$('#today-side-count').textContent=state.tasks.filter(t=>t.status!=='done'&&isTodayPinned(t)).length;$('#sidebar-subjects').innerHTML=activeSubjects().map(s=>`<div class="sidebar-subject"><i class="subject-dot" style="background:${s.color}"></i>${escapeHtml(s.name)}</div>`).join('')||'<div class="sidebar-subject">Noch keine Fächer</div>';$('#user-name').textContent=user.display_name;$('#user-role').textContent=user.role==='admin'?'Administrator':'Benutzerkonto';$('#avatar').textContent=user.display_name.slice(0,1).toUpperCase()}
 function setSelect(id,options,all=false){const select=$(id),prev=select.value;select.innerHTML=(all?'<option value="all">Alle Fächer</option>':'')+options.map(s=>`<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`).join('');if([...select.options].some(o=>o.value===prev))select.value=prev}
 function renderSelects(){setSelect('#timer-subject',activeSubjects());setSelect('#archive-subject',state.subjects,true);renderCategorySelect();setSelect('#task-filter-subject',state.subjects,true);setSelect('#insights-subject',state.subjects,true);setSelect('#history-subject',state.subjects,true);renderTimerTasks()}
@@ -87,10 +117,44 @@ function renderTimer(){const a=state.active_timer;const mode=a?.mode;$('#focus-h
  for(const id of ['start','break','break-end','pause','resume','stop','discard'])$('#timer-'+id).hidden = (id==='start'?!!a:id==='break'?!a||mode!=='focus':id==='break-end'?!a||mode!=='break':id==='pause'?!a||mode!=='focus':id==='resume'?!a||mode!=='paused':!a);
  updateClock()}
 function timerTime(mode){const t=state?.active_timer;if(!t)return 0;let seconds=Number(t[mode==='focus'?'focus_seconds':'break_seconds'])||0;if(t.mode===mode&&t.mode_since){seconds+=Math.max(0,Math.floor((Date.now()-new Date(t.mode_since).getTime())/1000))}return seconds}
-function updateClock(){if(!state)return;const focus=timerTime('focus'),br=timerTime('break');let n=state.active_timer?.mode==='break'?br:focus;$('#focus-clock').textContent=`${pad(Math.floor(n/3600))}:${pad(Math.floor(n/60)%60)}:${pad(n%60)}`;$('#focus-amount').textContent=fmt(focus);$('#break-amount').textContent=fmt(br);renderTodayTotals();if(currentPage==='overview'&&lastOverviewMinute!==Math.floor(Date.now()/60000)){renderWeekTotals();const range=$('#overview-subject-range').value;if(range==='today'||range==='week')renderDistribution()}if(currentPage==='today'&&Date.now()-lastTodayVisibilityRefresh>=60000){lastTodayVisibilityRefresh=Date.now();renderToday()}if(currentPage==='insights'&&state.active_timer&&Date.now()-lastTimingRefresh>=60000){lastTimingRefresh=Date.now();renderTiming()}if(typeof window.updateProductivityClock==='function')window.updateProductivityClock();if(typeof window.renderLectureAttendance==='function')window.renderLectureAttendance()}
+function focusOverlayVisible(){const overlay=$('#productivity-focus-overlay');return !!overlay&&!overlay.hidden}
+function movingTimer(){return state?.active_timer?.mode==='focus'||state?.active_timer?.mode==='break'}
+function updateClock(){
+ if(!state||document.hidden)return;
+ if(currentPage==='overview'&&!focusOverlayVisible()){
+  const focus=timerTime('focus'),br=timerTime('break'),n=state.active_timer?.mode==='break'?br:focus;
+  setText('#focus-clock',pad(Math.floor(n/3600))+':'+pad(Math.floor(n/60)%60)+':'+pad(n%60));
+  setText('#focus-amount',fmt(focus));setText('#break-amount',fmt(br));
+ }
+ if(focusOverlayVisible())window.updateProductivityClock?.();
+}
+function syncClock(){uiClock.sync()}
+function refreshVisibleTime(force=false){
+ if(!state||document.hidden)return;
+ const now=Date.now(),minute=Math.floor(now/60000);
+ if(!force&&minute===lastUiMinute)return;
+ lastUiMinute=minute;
+ const day=dateKey(new Date(now));
+ if(day!==lastCalendarDay){renderAll();return}
+ const moving=movingTimer();
+ // Only inexpensive time-sensitive work on idle ticks; full lists are not
+ // rebuilt unless their contents actually become stale.
+ if(currentPage==='overview'&&(moving||force)){
+  renderTodayTotals();renderWeekTotals();
+  const range=$('#overview-subject-range').value;
+  if(range==='today'||range==='week')renderDistribution();
+  if($('#overview-range').value==='today')renderActivity();
+ }
+ if(currentPage==='today'){
+  if(now>=renderToday.nextExpiry)renderToday();
+  else if(moving||force)renderTodayTotals();
+ }
+ if(currentPage==='insights'&&(moving||force))renderTiming();
+ if(currentPage==='today'||currentPage==='week')window.renderLectureAttendance?.(force);
+}
 async function timerAction(action,taskId=null){if(action==='discard'&&!confirm('Timer ohne Speichern verwerfen?'))return;let payload={};if(action==='start') {if(taskId){payload.task_id=taskId}else{payload={subject_id:$('#timer-subject').value,task_id:$('#timer-task').value||null,title:$('#timer-title').value}}payload.category_tag_id=$('#timer-category').value==='__none__'?null:($('#timer-category').value||(taskId?taskById(taskId)?.tags?.[0]:($('#timer-task').value?taskById($('#timer-task').value)?.tags?.[0]:null))||null);}const result=await mutate('/api/timer/'+action,'POST',payload);if(result){const messages={start:'Fokuszeit gestartet.',pause:'Timer unterbrochen.',resume:'Fokuszeit fortgesetzt.','break-start':'Pause gestartet.','break-end':'Pause beendet. Zurück zum Lernen!',stop:'Session gespeichert – inklusive deiner Pausen.',discard:'Timer verworfen.'};toast(messages[action]);if(action==='stop'||action==='discard')$('#timer-title').value='';if(action==='start'){if(state.settings.focus_mode_enabled!==false&&typeof window.openProductivityFocus==='function')window.openProductivityFocus();else showPage('overview')}if(!state.active_timer&&typeof window.closeProductivityFocus==='function')window.closeProductivityFocus()}}
-function renderWeekTotals(){lastOverviewMinute=Math.floor(Date.now()/60000);const week=sessionForWeek();const focus=week.reduce((n,s)=>n+s.duration_seconds,0),br=week.reduce((n,s)=>n+(s.break_seconds||0),0),goal=(state.settings.weekly_goal_minutes||0)*60,progress=goal?Math.min(100,focus/goal*100):0;$('#goal-value').textContent=fmt(focus);$('#goal-target').textContent=goal?fmt(goal):'–';$('#goal-percent').textContent=goal?`${Math.round(progress)} % erreicht`:'Ohne Wochenziel';$('#goal-remain').textContent=goal?(focus<goal?`${fmt(goal-focus)} offen`:'Wochenziel erreicht!'):'Frei einteilbar';$('#goal-bar').style.width=(goal?progress:0)+'%';$('#days-week').textContent=`${new Set(week.flatMap(s=>s.focus_days)).size} Tage`;const completed=state.tasks.filter(t=>t.status==='done'&&t.completed_at&&new Date(t.completed_at)>=weekStart()).length;$('#completed-week').textContent=`${completed} Aufgaben`;
- $('#kpi-week').textContent=fmt(focus);$('#kpi-break').textContent=fmt(br);
+function renderWeekTotals(){lastOverviewMinute=Math.floor(Date.now()/60000);const week=sessionForWeek();const focus=week.reduce((n,s)=>n+s.duration_seconds,0),br=week.reduce((n,s)=>n+(s.break_seconds||0),0),goal=(state.settings.weekly_goal_minutes||0)*60,progress=goal?Math.min(100,focus/goal*100):0;setText('#goal-value',fmt(focus));setText('#goal-target',goal?fmt(goal):'–');setText('#goal-percent',goal?`${Math.round(progress)} % erreicht`:'Ohne Wochenziel');setText('#goal-remain',goal?(focus<goal?`${fmt(goal-focus)} offen`:'Wochenziel erreicht!'):'Frei einteilbar');const width=(goal?progress:0)+'%';if($('#goal-bar').style.width!==width)$('#goal-bar').style.width=width;setText('#days-week',`${new Set(week.flatMap(s=>s.focus_days)).size} Tage`);const completed=state.tasks.filter(t=>t.status==='done'&&t.completed_at&&new Date(t.completed_at)>=weekStart()).length;setText('#completed-week',`${completed} Aufgaben`);
+ setText('#kpi-week',fmt(focus));setText('#kpi-break',fmt(br));
 }
 function renderOverview(){renderWeekTotals();$('#kpi-today').textContent=fmt(totalSeconds(todaySessions()));$('#kpi-tasks').textContent=state.tasks.filter(t=>t.status!=='done').length;
  const done=completedRootTasks();const plan=done.reduce((n,t)=>n+taskEstimate(t)*60,0),actual=done.reduce((n,t)=>n+taskSeconds(t),0);$('#kpi-variance').textContent=done.length&&plan?`${actual>plan?'+':''}${Math.round((actual-plan)/plan*100)} %`:'–';
@@ -99,19 +163,27 @@ function renderOverview(){renderWeekTotals();$('#kpi-today').textContent=fmt(tot
  $('#recent-sessions').innerHTML=state.sessions.slice().sort((a,b)=>b.started_at.localeCompare(a.started_at)).slice(0,3).map(s=>`<div class="preview-row"><span class="preview-icon">${icon('clock')}</span><div class="preview-main"><strong>${escapeHtml(s.title||taskById(s.task_id)?.title||'Lerneinheit')}</strong><small>${escapeHtml(subject(s.subject_id)?.name||'Fach')} · ${formatDate(s.started_at)}</small></div><span class="preview-value">${fmt(s.duration_seconds)}</span></div>`).join('')||'<div class="empty">Noch keine Lernzeiten gespeichert.</div>';
  renderActivity();renderDistribution()}
 function renderActivity(){const n=$('#overview-range').value;const sessions=state.sessions;let bars=[];let label='';if(n==='today'){label='Heute · nach tatsächlicher Fokuszeit';
-   const model=StudyTime.accumulate([...state.sessions,...(state.active_timer?[state.active_timer]:[])],'today',Date.now());
+   const now=Date.now(),start=new Date(now);start.setHours(0,0,0,0);
+   const completed=StudyTime.completedCandidates(state.sessions,start.getTime(),now);
+   const model=StudyTime.accumulate([...completed,...(state.active_timer?[state.active_timer]:[])],'today',now);
    bars=model.values.map((secs,h)=>({label:`${pad(h)}h`,secs}));
  }
  else if(n==='365') {label='Letzte 12 Monate';for(let i=11;i>=0;i--){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-i);const k=`${d.getFullYear()}-${pad(d.getMonth()+1)}`;bars.push({label:d.toLocaleDateString(StudyI18n.locale(),{month:'short'}),secs:sessions.filter(s=>isoDate(s.started_at).startsWith(k)).reduce((a,s)=>a+s.duration_seconds,0)})}}
  else if(n==='90'){label='Letzte 13 Wochen';const start=weekStart();for(let i=12;i>=0;i--){const beginning=new Date(start);beginning.setDate(beginning.getDate()-7*i);const end=new Date(beginning);end.setDate(end.getDate()+7);bars.push({label:`${StudyI18n.language==='en'?'W':'KW'} ${Math.ceil(((beginning-new Date(beginning.getFullYear(),0,1))/86400000+new Date(beginning.getFullYear(),0,1).getDay()+1)/7)}`,secs:sessions.filter(s=>{const date=new Date(s.started_at);return date>=beginning&&date<end}).reduce((a,s)=>a+s.duration_seconds,0)})}}
  else {label=`Letzte ${n} Tage`;for(let i=Number(n)-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const key=dateKey(d);bars.push({label:n==='30'?`${d.getDate()}.`:d.toLocaleDateString(StudyI18n.locale(),{weekday:'short'}).slice(0,2),secs:sessions.filter(s=>isoDate(s.started_at)===key).reduce((a,s)=>a+s.duration_seconds,0)})}}
  $('#activity-chart').style.gridTemplateColumns=`repeat(${bars.length},minmax(0,1fr))`;let max=Math.max(...bars.map(b=>b.secs),3600);$('#activity-chart').innerHTML=bars.map(b=>`<div class="chart-bar-wrap" tabindex="0" data-chart-tip="${niceTooltip(b.label+' · '+fmt(b.secs))}"><div class="chart-bar ${b.secs?'':'empty'}" style="height:${Math.max(b.secs/max*150,4)}px"></div><div class="chart-day">${escapeHtml(b.label)}</div></div>`).join('');$('#chart-description').textContent=label}
-function renderDistribution(){const range=$('#overview-subject-range').value;const sessions=periodSessions(range);let sum=0;let parts=state.subjects.map(s=>{const sec=sessions.filter(r=>r.subject_id===s.id).reduce((n,r)=>n+r.duration_seconds,0);sum+=sec;return {subject:s,sec}}).filter(x=>x.sec).sort((a,b)=>b.sec-a.sec);$('#donut-total').textContent=fmt(sum);let at=0;const gradient=parts.map(p=>{const from=at;at+=p.sec/Math.max(sum,1)*100;return `${p.subject.color} ${from}% ${at}%`}).join(', ');$('#donut').style.background=sum?`conic-gradient(${gradient})`:'#eeedf7';$('#subject-legend').innerHTML=parts.map(p=>`<div class="legend-line" tabindex="0" data-chart-tip="${niceTooltip(p.subject.name+' · '+fmt(p.sec)+' · '+(100*p.sec/sum).toFixed(1)+' %')}"><i style="background:${p.subject.color}"></i><span>${escapeHtml(p.subject.name)}</span><b>${fmt(p.sec)}</b></div>`).join('')||'<p class="empty">Noch keine Lernzeit.</p>'}
-function renderTodayTotals(){if(!state)return;const sessions=todaySessions();const focus=totalSeconds(sessions);const breaks=totalSeconds(sessions,'break_seconds');
- if($('#kpi-today'))$('#kpi-today').textContent=fmt(focus);
- if($('#today-focus-total'))$('#today-focus-total').textContent=fmt(focus);
- if($('#today-break-total'))$('#today-break-total').textContent=fmt(breaks)+' Pausen';
- if($('#today-subject-summary')){$('#today-subject-summary').innerHTML=state.subjects.map(s=>({name:s.name,color:s.color,time:totalSeconds(sessions.filter(x=>x.subject_id===s.id))})).filter(s=>s.time>0).sort((a,b)=>b.time-a.time).map(s=>`<span class="today-subject-pill"><i style="background:${s.color}"></i>${escapeHtml(s.name)} <strong>${fmt(s.time)}</strong></span>`).join('')||'<span class="muted">Noch keine Lernzeit heute.</span>'}}
+function renderDistribution(){const range=$('#overview-subject-range').value;const sessions=periodSessions(range);let sum=0;const totals=new Map();for(const r of sessions)totals.set(r.subject_id,(totals.get(r.subject_id)||0)+r.duration_seconds);let parts=state.subjects.map(s=>{const sec=totals.get(s.id)||0;sum+=sec;return {subject:s,sec}}).filter(x=>x.sec).sort((a,b)=>b.sec-a.sec);setText('#donut-total',fmt(sum));let at=0;const gradient=parts.map(p=>{const from=at;at+=p.sec/Math.max(sum,1)*100;return `${p.subject.color} ${from}% ${at}%`}).join(', ');const background=sum?`conic-gradient(${gradient})`:'#eeedf7';if($('#donut').style.background!==background)$('#donut').style.background=background;setHTML('#subject-legend',parts.map(p=>`<div class="legend-line" tabindex="0" data-chart-tip="${niceTooltip(p.subject.name+' · '+fmt(p.sec)+' · '+(100*p.sec/sum).toFixed(1)+' %')}"><i style="background:${p.subject.color}"></i><span>${escapeHtml(p.subject.name)}</span><b>${fmt(p.sec)}</b></div>`).join('')||'<p class="empty">Noch keine Lernzeit.</p>')}
+function renderTodayTotals(){
+ if(!state)return;const sessions=todaySessions(),focus=totalSeconds(sessions);
+ if(currentPage==='overview'){setText('#kpi-today',fmt(focus));return}
+ if(currentPage!=='today')return;
+ setText('#today-focus-total',fmt(focus));setText('#today-break-total',fmt(totalSeconds(sessions,'break_seconds'))+' Pausen');
+ const bySubject=new Map();
+ for(const s of sessions)bySubject.set(s.subject_id,(bySubject.get(s.subject_id)||0)+s.duration_seconds);
+ const summary=state.subjects.map(s=>({name:s.name,color:s.color,time:bySubject.get(s.id)||0})).filter(s=>s.time>0).sort((a,b)=>b.time-a.time)
+   .map(s=>'<span class="today-subject-pill"><i style="background:'+s.color+'"></i>'+escapeHtml(s.name)+' <strong>'+fmt(s.time)+'</strong></span>').join('')||'<span class="muted">Noch keine Lernzeit heute.</span>';
+ setHTML('#today-subject-summary',summary);
+}
 function isTodayPinned(t){return !!t?.planned_for && t.planned_for<=dateKey(new Date())}
 // Keep incomplete selected work across midnight, but only keep completions on Today for 24 hours.
 // The saved pin stays in the profile so reopening a task restores it to Today.
@@ -133,6 +205,7 @@ function todayButton(t){const active=isTodayPinned(t);return `<button type="butt
 function renderToday(){
  renderTodayTotals();
  const {pending,recentDone}=todayTaskGroups(state.tasks);
+ renderToday.nextExpiry=recentDone.reduce((earliest,t)=>Math.min(earliest,new Date(t.completed_at).getTime()+86400000),Infinity);
  const forEstimate=pending.filter(t=>!t.parent_id||!isTodayPinned(taskById(t.parent_id)));
  const minutes=forEstimate.reduce((a,t)=>a+(taskEstimate(t)||0),0);
  const en=StudyI18n.language==='en';
@@ -447,7 +520,7 @@ async function handleModalSubmit(e){e.preventDefault();if(modalKind==='exercise-
  else if(modalKind==='session'){const d=new Date($('#f-s-date').value+'T'+$('#f-s-time').value);if(Number.isNaN(+d)){toast('Ungültiger Zeitpunkt.',true);return}const body={subject_id:$('#f-s-subject').value,task_id:$('#f-s-task').value||null,title:$('#f-s-title').value,notes:$('#f-s-notes').value,started_at:d.toISOString(),duration_seconds:Number($('#f-s-minutes').value)*60,category_tag_id:$('#f-s-category').value||null,tags:[...modalTags]};if(await mutate(editId?'/api/sessions/'+editId:'/api/sessions',editId?'PATCH':'POST',body)){modalClose();toast('Lernzeit gespeichert.')}}}
 async function importFile(file,kind){if(!file)return;if(file.size>8*1024*1024){toast('Datei zu groß.',true);return}try{const body=JSON.parse(await file.text());if(kind==='backup'&&!confirm('Achtung: Das komplette Profil wird mit diesem Backup überschrieben. Fortfahren?'))return;const result=await mutate(kind==='tasks'?'/api/import/tasks':'/api/import/backup','POST',body);if(result)toast(kind==='tasks'?`${result.added} Aufgaben importiert, ${result.skipped} Duplikate übersprungen.`:'Backup wiederhergestellt.')}catch(e){toast('JSON konnte nicht gelesen werden: '+e.message,true)}}
 function download(path){const a=document.createElement('a');a.href=path;document.body.appendChild(a);a.click();a.remove()}
-async function showAuth(){const status=await api('/api/auth/status');if(status.user){user=status.user;$('#app').hidden=false;$('#auth-screen').hidden=true;await refresh();showPage(location.hash.slice(1)||'overview')}else {user=null;state=null;$('#agent-paste-json').value='';$('#agent-paste-status').textContent='';$('#app').hidden=true;$('#auth-screen').hidden=false;const setup=status.setup_required;$('#auth-title').innerHTML=setup?'Starte dein <span>Lernstudio.</span>':'Schön, dass du da bist<span>.</span>';$('#auth-subtitle').textContent=setup?'Erstelle das erste Administratorkonto. Deine Daten bleiben lokal.':'Melde dich an und mach dort weiter, wo du aufgehört hast.';$('#auth-name-wrap').hidden=!setup;$('#auth-name').required=setup;$('#auth-submit').innerHTML=setup?'Konto anlegen →':'Anmelden →';$('#auth-form').dataset.setup=setup?'1':'0';$('#auth-password').autocomplete=setup?'new-password':'current-password'}}
+async function showAuth(){accountEpoch++;profileEpoch++;profilePoller.stop();uiClock.stop();const status=await api('/api/auth/status');if(status.user){user=status.user;$('#app').hidden=false;$('#auth-screen').hidden=true;await refresh();showPage(location.hash.slice(1)||'overview');profilePoller.start()}else {user=null;state=null;renderIndex=null;indexedState=null;renderPending=false;importNoticePending=false;window.closeProductivityFocus?.();$('#agent-paste-json').value='';$('#agent-paste-status').textContent='';$('#app').hidden=true;$('#auth-screen').hidden=false;const setup=status.setup_required;$('#auth-title').innerHTML=setup?'Starte dein <span>Lernstudio.</span>':'Schön, dass du da bist<span>.</span>';$('#auth-subtitle').textContent=setup?'Erstelle das erste Administratorkonto. Deine Daten bleiben lokal.':'Melde dich an und mach dort weiter, wo du aufgehört hast.';$('#auth-name-wrap').hidden=!setup;$('#auth-name').required=setup;$('#auth-submit').innerHTML=setup?'Konto anlegen →':'Anmelden →';$('#auth-form').dataset.setup=setup?'1':'0';$('#auth-password').autocomplete=setup?'new-password':'current-password'}}
 function positionChartTooltip(event){const tip=$('#chart-tooltip');if(!tip||tip.hidden)return;const x=event.clientX??window.innerWidth/2,y=event.clientY??window.innerHeight/2;tip.style.left=Math.max(12,Math.min(window.innerWidth-tip.offsetWidth-12,x+15))+'px';tip.style.top=Math.max(12,Math.min(window.innerHeight-tip.offsetHeight-12,y-45))+'px'}
 function bindChartTooltips(){const tip=$('#chart-tooltip');document.addEventListener('pointerover',e=>{const el=e.target.closest?.('[data-chart-tip]');if(!el)return;tip.textContent=el.dataset.chartTip;tip.hidden=false;positionChartTooltip(e)});document.addEventListener('pointermove',e=>{if(!tip.hidden)positionChartTooltip(e)});document.addEventListener('pointerout',e=>{if(e.target.closest?.('[data-chart-tip]')&&!e.relatedTarget?.closest?.('[data-chart-tip]'))tip.hidden=true});document.addEventListener('focusin',e=>{const el=e.target.closest?.('[data-chart-tip]');if(!el)return;tip.textContent=el.dataset.chartTip;tip.hidden=false;const r=el.getBoundingClientRect();positionChartTooltip({clientX:r.left+r.width/2,clientY:r.top})});document.addEventListener('focusout',e=>{if(e.target.closest?.('[data-chart-tip]'))tip.hidden=true});}
 function bind(){bindChartTooltips();hydrateIcons();StudyI18n.bind();$$('.nav-link').forEach(el=>el.addEventListener('click',()=>showPage(el.dataset.page)));$('#mobile-toggle').addEventListener('click',()=>$('#sidebar').classList.toggle('open'));
@@ -505,8 +578,36 @@ function bind(){bindChartTooltips();hydrateIcons();StudyI18n.bind();$$('.nav-lin
  $('#copy-inbox').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('#inbox-path').textContent);toast('Relativen Inbox-Pfad kopiert.')}catch{toast($('#inbox-path').textContent)}});
  window.addEventListener('hashchange',()=>{if(user)showPage(location.hash.slice(1))});
 }
-(async()=>{bind();$('#today').textContent=new Date().toLocaleDateString(StudyI18n.locale(),{weekday:'long',day:'numeric',month:'long',year:'numeric'});try{await showAuth()}catch(e){toast(e.message,true)}setInterval(updateClock,1000);setInterval(async()=>{if(user&&state){try{
- const revision=await api('/api/profile/revision');if(revision.revision===profileRevision)return;
- const r=await api('/api/state');const imported=JSON.stringify(r.state.imports)!==JSON.stringify(state.imports);
- state=r.state;profileRevision=r.revision;renderAll();if(imported)toast('Neue Aufgaben aus der Polybox-Inbox importiert.');
- }catch{}}},5000)})();
+// Timestamp-based synchronization: an old GET must not overwrite a mutation
+// or another authenticated user's state. No polling while signed out.
+async function pollProfile(){
+ refreshVisibleTime();
+ if(!user||!state||pendingMutations)return;
+ const epoch=profileEpoch,owner=accountEpoch;
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),10000);
+ try{
+  const revision=await api('/api/profile/revision','GET',null,controller.signal);
+  if(epoch!==profileEpoch||owner!==accountEpoch||pendingMutations||revision.revision===profileRevision)return;
+  const r=await api('/api/state','GET',null,controller.signal);
+  if(epoch!==profileEpoch||owner!==accountEpoch||pendingMutations)return;
+  if(r.user.id!==user.id){await showAuth();return}
+  const incoming=r.state.imports||[],previous=state.imports||[];
+  const imported=incoming.length!==previous.length||incoming.at(-1)?.batch_id!==previous.at(-1)?.batch_id;
+  state=r.state;profileRevision=r.revision;renderAll();
+  if(imported){if(document.hidden)importNoticePending=true;else toast('Neue Aufgaben aus der Polybox-Inbox importiert.')}
+ }catch(e){if(e.status===401&&owner===accountEpoch){await showAuth();return}throw e}
+ finally{clearTimeout(timeout)}
+}
+const uiClock=StudyPerformance.createClock({
+ shouldRun:()=>!!state&&!document.hidden&&movingTimer()&&(currentPage==='overview'||focusOverlayVisible()),
+ tick:()=>{updateClock();refreshVisibleTime()}
+});
+const profilePoller=StudyPerformance.createPoller({run:pollProfile,visible:()=>!document.hidden,enabled:()=>!!user&&!!state});
+document.addEventListener('visibilitychange',()=>{
+ if(document.hidden){uiClock.stop();profilePoller.visibilityChanged();return}
+ if(renderPending)renderAll();
+ else {refreshVisibleTime(true);updateClock()}
+ if(importNoticePending&&user){importNoticePending=false;toast('Neue Aufgaben aus der Polybox-Inbox importiert.')}
+ syncClock();profilePoller.visibilityChanged();
+});
+(async()=>{bind();try{await showAuth()}catch(e){toast(e.message,true)}})();
