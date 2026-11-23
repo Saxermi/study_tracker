@@ -1,3 +1,8 @@
+## Unreleased — better GPT assessment calibration and saved-state display
+
+- Calibrate ChatGPT help scores with concrete, evidence-based examples for levels 0–5; avoid repeated 4/5 ratings based only on chat length or follow-up explanations.
+- Clearly distinguish saved GPT ratings from unsaved previews; add an in-section Save button, explain missing numeric fields and verify server-confirmed persisted feedback before success.
+
 # Changelog (English)
 
 ## Unreleased — low-power background operation

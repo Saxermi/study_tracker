@@ -20,6 +20,7 @@ test('new review overlay loads in a minimal browser context and requests copyabl
  const context={
   openTaskReview(){},renderReviewComparison(){},reviewPromptFor(){},
   StudyI18n:{language:'en'},document:{querySelector(){return null},addEventListener(){}},
+  StudyExerciseReview:helper,
   escapeHtml(text){return String(text)},reviewLang(){return {issues:['Concept','Approach']}},
   reviewDraft:{},gptAssessmentFromDialog(){return {data:null,error:null}}
  };
@@ -48,6 +49,7 @@ test('overlay wraps the app modalClose when available, but does not require it f
   openTaskReview(){},renderReviewComparison(){},reviewPromptFor(){},
   modalClose(){called++},
   StudyI18n:{language:'en'},document:{querySelector(){return null},addEventListener(){}},
+  StudyExerciseReview:helper,
   escapeHtml(text){return String(text)},reviewLang(){return {issues:['Concept','Approach']}},
   reviewDraft:{},gptAssessmentFromDialog(){return {data:null,error:null}}
  };

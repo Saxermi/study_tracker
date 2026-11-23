@@ -1,3 +1,8 @@
+## Unreleased — GPT-Hilfeskala und Speicherung
+
+- Konkrete Beispiele für alle Hilfewerte 0–5; lange Chats oder Nachbesprechungen führen nicht automatisch zu 4/5 oder 5/5.
+- Gespeicherte GPT-Bewertungen eindeutig von ungesicherten Vorschauen unterscheiden; Speichern-Schaltfläche im GPT-Bereich, Erklärung fehlender Zahlen und Prüfung der Serverantwort vor der Erfolgsmeldung.
+
 # Changelog (Deutsch)
 
 ## Unreleased — energiesparender Hintergrundbetrieb
