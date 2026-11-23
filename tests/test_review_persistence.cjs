@@ -86,7 +86,7 @@ test('GPT help calibration is non-inflated, bilingual, and numerically valid',()
   assert.match(prompt,/5\/5/);
   assert.match(prompt,/4\/5/);
   assert.match(prompt,lang==='de'?/NICHT automatisch|NICHT kopieren/:/do NOT by themselves|DO NOT copy/);
-  const fenced=[...prompt.matchAll(/NaNjson\n([\s\S]*?)\nNaN/g)];
+  const fenced=[...prompt.matchAll(/```json\n([\s\S]*?)\n```/g)];
   assert.equal(fenced.length,1);
   const data=JSON.parse(fenced[0][1]);
   assert.equal(data.help_total,2);
