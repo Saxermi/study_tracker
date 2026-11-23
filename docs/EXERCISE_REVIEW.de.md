@@ -35,3 +35,9 @@ Additional optional feedback: `issues` (up to three issue codes); `strength` and
 ## Exakte JSON-Ausgabe und Bewertungsmaßstab
 
 Der [vollständige deutsche Bewertungs-Prompt](../prompts/exercise-review.de.md) gibt für **alle elf Felder** JSON-Typen, exakte Enum-Werte, Zeichen- und Listengrenzen sowie den Schwierigkeitsmaßstab **1–5** vor. `difficulty` und `help_total`/`help_chatgpt` sind Ganzzahlen, niemals Strings wie `"high"`. Die Ausgabe ist genau ein kopierbarer `json`-Codeblock. Fehlende Belege: `null` für Einzelwerte, `[]` für nicht belegte Listen.
+
+## GPT-Feedback speichern und erkennen
+
+Das JSON-Feld zeigt **Gespeichertes GPT-Feedback**, wenn der vorhandene gespeicherte Inhalt unverändert ist. Bei Änderungen wird **Ungesicherte GPT-Vorschau** angezeigt. Klicke direkt im GPT-Bereich auf **GPT-Feedback speichern** (oder die allgemeine Speichern-Schaltfläche). Eine Erfolgsmeldung erscheint erst, wenn die Serverantwort die erwarteten Felder unter `exercise_review_gpt` enthält. Löschen muss ebenfalls gespeichert werden; bloßes Schließen verändert nichts. Auch ausschließlich Text/Hilfearten können gespeichert werden; fehlende Zahlen bleiben in der Vergleichstabelle als `—` sichtbar und werden ausdrücklich erklärt.
+
+Die ChatGPT-Anleitung enthält jetzt konkrete **0–5-Beispiele zur tatsächlich geleisteten Hilfe**. Reine Lösungskontrolle, ein kleiner Hinweis, mehrere Leitfragen, wesentliche Lösungsschritte und eine fast vollständige Lösung sind klar unterschieden. Lange Chats und Nachbesprechungen führen nicht automatisch zu 4/5 oder 5/5. Die Kalibrierung gilt sowohl für den kopierbaren Prompt im Dialog als auch beide eigenständigen Sprachversionen. Beispiele sind fiktiv und dürfen nicht übernommen werden.

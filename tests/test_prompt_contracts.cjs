@@ -61,6 +61,7 @@ test('in-app GPT prompt enforces the same strict 11-field response in both langu
   const context={
    openTaskReview(){},renderReviewComparison(){},reviewPromptFor(){},
    StudyI18n:{language:lang},
+   StudyExerciseReview:review,
    document:{querySelector(){return null},addEventListener(){}},
    escapeHtml(v){return String(v)},reviewLang(){return {issues:['Concept']}},
    reviewDraft:{},gptAssessmentFromDialog(){return {data:null,error:null}}

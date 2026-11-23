@@ -35,3 +35,9 @@ Additional optional feedback: `issues` (up to three issue codes); `strength` and
 ## Exact JSON output and rating calibration
 
 The [complete English exercise-assessment prompt](../prompts/exercise-review.md) defines **all eleven fields**, their JSON types, exact enums, length/list limits and a calibrated **1–5** difficulty rubric. `difficulty`, `help_total`, and `help_chatgpt` are JSON integers, never strings such as `"high"`. The output must be one copyable fenced `json` block. Missing evidence: `null` for scalars and `[]` for unsupported lists.
+
+## Saving and recognizing GPT assessments
+
+The GPT textarea shows **Saved GPT feedback** when it contains the unchanged assessment already stored for the task. If edited, it shows **Unsaved GPT preview** until saved. Click **Save GPT feedback** directly below the GPT JSON (or the form's Save button). The UI verifies that the response state contains the expected `exercise_review_gpt` fields before reporting success. Clearing feedback requires a separate Save; closing the dialog without saving keeps the previous assessment. A valid JSON object containing only a strength or assistance types can be saved, but the numeric comparison remains `—` for missing fields and now explicitly explains this. No ratings are silently fabricated.
+
+The ChatGPT prompt now provides concrete evidence-based **0–5 help examples**, distinguishing simple verification, one hint, guided steps, substantial solution assistance, and a fully supplied solution. It warns against assigning 4/5 or 5/5 from chat length or post-solution explanations. The same rubric is used by the in-app prompt and standalone English/German prompts. Score examples are fictitious and must not be copied.

@@ -1,26 +1,29 @@
-# Prompt: ChatGPT exercise assessment with exact JSON output (English)
+# ChatGPT prompt: calibrated exercise assessment
 
-Copy these instructions and provide the exercise statement, your attempted solution and the relevant chat. Rate only evidence that is actually visible. Unknown values must remain unknown.
+Use this prompt with the actual exercise, your own attempted work and the relevant chat. Only rate assistance demonstrated in that conversation.
 
-## Mandatory output contract
+**Required output:** Return EXACTLY ONE copyable fenced JSON code block (`json`) and no other prose. The contents must parse as one JSON object; when storing a .json file, omit the fences.
+**Strict schema (English, case-sensitive keys/values):**
+- `difficulty`: JSON INTEGER 1, 2, 3, 4 or 5, or null. 1 = straightforward recall/substitution; 2 = familiar routine problem; 3 = moderate multi-step reasoning; 4 = difficult with non-obvious decisions, proof or substantial debugging; 5 = exceptional unfamiliar synthesis. Rate inherent task demands, not assistance received. Never use strings such as "high".
+- `outcome`: JSON STRING exactly "correct", "partial" or "incorrect", or null when no checked solution is available.
+- `issue`: one PRIMARY JSON STRING from "concept", "approach", "calculation", "implementation", "instructions", "careless", "time", "verification", or null.
+- `issues`: JSON ARRAY of 0–3 UNIQUE strings from the same eight issue codes. If `issue` is set, include it here. Use [] if no observed issues.
+- `help_total`: JSON INTEGER 0–5 or null for assistance from ALL sources. `help_chatgpt`: JSON INTEGER 0–5 or null for assistance actually provided by ChatGPT only. If both known, `help_chatgpt` <= `help_total`. If other assistance isn't observable, do NOT automatically assume total help equals ChatGPT help.
+- `chatgpt_interventions`: JSON ARRAY of 0–3 UNIQUE strings from "verification", "hint", "guiding_questions", "concept_explanation", "approach_selection", "step_by_step", "debugging", "calculation", "code_generation", "full_solution", "error_identification". Use [] if none were observed. These describe TYPE, not AMOUNT, of help.
+- `strength`: ONE specific, evidenced JSON STRING sentence, up to 200 characters, or null. `weakness`: same, up to 200 characters, or null.
+- `skill_gap`: one specific short JSON STRING up to 100 characters, or null. `next_action`: one concrete achievable JSON STRING step up to 160 characters, or null.
+- Return ALL ELEVEN exact keys, without additions. Strings use double quotes; integers are unquoted; null is unquoted; arrays use brackets. No comments or trailing commas. No fabricated observations. Unknown scalar -> null, no observed issue/intervention -> [].
+**Help rating rubric — calibrate from the ACTUAL conversation (not how long it is):**
+0 = No help with the solution. Example: the student solves the exercise without consulting an assistant.
+1 = Verification or a very minor clarification. Example: the student already solved it, then asks whether the final result is correct; ChatGPT only checks it. A detailed explanation AFTER solving does not make this 4/5.
+2 = One small, directional hint. Example: ChatGPT says "try induction" or points to a relevant formula, but the student chooses the method, performs the derivation and completes the work.
+3 = Several targeted hints or guiding questions. Example: ChatGPT asks which condition applies and later points out one error; the student still builds the main argument/calculation and reaches the answer.
+4 = Major solution assistance BEFORE independent completion. Example: ChatGPT identifies the critical method AND works through essential steps or derivations, while the student finishes a meaningful remaining part.
+5 = Near-complete or complete solution supplied by ChatGPT BEFORE the student has solved it. Example: ChatGPT generates the finished proof, code or full worked calculation; the student mainly copies, checks or makes small edits.
+**Anti-inflation rules:** Five chat messages do NOT imply 5/5. A long conversation, repeated questions, a concept explanation after successful completion, or simple answer checks do NOT by themselves imply 4 or 5. Assign 4 only with concrete evidence that the assistant supplied essential solution steps, and 5 only for a near-complete delivered solution. When two adjacent scores are plausible, choose the LOWER level supported by explicit evidence; use null if the relevant work is not visible. Distinguish the learner's own reasoning from assistant output. Base `help_total` on observed help from all sources; never invent unseen help.
+**Before answering:** Compare the chat to the 0–5 examples; identify the highest substantive help provided BEFORE independent completion. Do not copy scores from the illustrative JSON. Return ONLY the JSON block.
 
-**Required output:** Return precisely ONE copyable fenced JSON code block with language json and NO other text. Pasteable JSON inside must parse as one object. Do not include markdown fences in the JSON file itself.
-**Types and exact values (case-sensitive; field names always English):**
-- **difficulty:** JSON integer 1, 2, 3, 4, or 5 (never strings such as high/medium/low; never decimals, percentages or 0); use null if you cannot judge.
-- **difficulty calibration for the student's current course level:** 1 = straightforward recall/substitution, little reasoning; 2 = standard, familiar method with limited steps; 3 = moderate multi-step work requiring choices or combining known ideas; 4 = difficult task requiring several non-obvious decisions, proof, or substantial debugging; 5 = exceptionally challenging or unfamiliar synthesis requiring sustained independent reasoning. Judge intrinsic task demands, not how much help was received.
-- **outcome:** exactly "correct", "partial" or "incorrect" (JSON string), or null. Only assess correctness when the actual solution and evidence are visible.
-- **issue:** exactly one primary issue code from concept, approach, calculation, implementation, instructions, careless, time, verification; or null. Never output a natural-language description here.
-- **issues:** JSON array of 0–3 UNIQUE strings chosen from the same eight issue codes; [] means none evidenced. If issue is non-null, include it in issues. No fourth entry.
-- **help_total:** JSON integer 0–5, or null. This is the level of help from ALL sources, not hours or number of messages.
-- **help_chatgpt:** JSON integer 0–5, or null. This is only the ChatGPT portion; if both help numbers are known, help_chatgpt <= help_total.
-- **Help scale for both help fields:** 0 = no help, 1 = tiny hint/check, 2 = a little guidance, 3 = several substantive hints or explanations, 4 = major step-by-step assistance, 5 = practically the full method or solution supplied. Do not use words like high or low as JSON values.
-- **chatgpt_interventions:** JSON array of 0–3 UNIQUE strings from verification, hint, guiding_questions, concept_explanation, approach_selection, step_by_step, debugging, calculation, code_generation, full_solution, error_identification; [] when none are evidenced. Never use human-readable labels instead of these codes.
-- **strength:** one specific evidence-based sentence as a JSON string of MAX 200 characters, or null; **weakness:** likewise max 200 characters, or null.
-- **skill_gap:** short specific skill as a JSON string of MAX 100 characters, or null; **next_action:** one concrete practice step as a JSON string of MAX 160 characters, or null.
-- Include all 11 keys shown in the example, never rename or add keys. JSON strings have double quotes, null is unquoted, arrays use square brackets; no comments, trailing commas, or explanation outside the fenced code block.
-- Never fabricate a strength, weakness, mistake, successful outcome, difficulty or intervention. Missing evidence -> null for a scalar, [] for an issue/intervention list.
-
-## Example: valid, directly copyable JSON
+## Example (illustrative only – do NOT copy the ratings)
 
 ```json
 {
@@ -28,26 +31,24 @@ Copy these instructions and provide the exercise statement, your attempted solut
   "outcome": "partial",
   "issue": "approach",
   "issues": [
-    "approach",
-    "concept"
+    "approach"
   ],
-  "help_total": 4,
-  "help_chatgpt": 4,
+  "help_total": 2,
+  "help_chatgpt": 2,
   "chatgpt_interventions": [
-    "guiding_questions",
-    "concept_explanation"
+    "hint"
   ],
-  "strength": "I identified the constraints independently.",
-  "weakness": "I needed help selecting the pivot variable.",
-  "skill_gap": "Choosing simplex pivot variables",
-  "next_action": "Solve another pivot-selection problem without hints."
+  "strength": "I set up the equations independently.",
+  "weakness": "I needed one hint to choose the next step.",
+  "skill_gap": "Choosing the correct transformation",
+  "next_action": "Solve a similar step without hints."
 }
 ```
 
 ## Evidence to assess
 
-Exercise statement: [paste here]
-Your solution and intermediate reasoning: [paste here]
-Relevant chat and feedback: [paste here]
+Exercise: [paste here]
+Own solution and main intermediate steps: [paste here]
+Chat history, including when the student completed the solution independently: [paste here]
 
-StudyTracker saves the result as a separate ChatGPT assessment; it never silently replaces your own rating. Full chat transcripts and repeated-attempt histories are not stored.
+StudyTracker stores GPT feedback separately from your own rating. Full conversations and multiple attempts are not stored automatically.

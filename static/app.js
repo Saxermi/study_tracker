@@ -27,7 +27,7 @@ function setText(id,value){const el=$(id);if(!el)return;const text=String(value)
 function setHTML(id,value){const el=$(id);if(!el)return;if(htmlSources.get(el)!==value){el.innerHTML=value;htmlSources.set(el,value)}}
 let reviewDraft = null, reviewPrompt = '', reviewAppliedJson = '';
 let reviewManualFields = new Set();
-let reviewGptDraft=null, reviewGptCleared=false, profileRevision=null;
+let reviewGptDraft=null, reviewGptCleared=false, reviewGptOriginalText='', reviewSaving=false, profileRevision=null;
 
 const api = async (path, method='GET', body=null, signal=null) => {
  const opts={method,credentials:'same-origin',headers:body===null?{}:{'Content-Type':'application/json'}};if(signal)opts.signal=signal;
@@ -411,14 +411,7 @@ function scoreButtons(field, start, lang){
  const opts=[null,...Array.from({length:6-start},(_,i)=>i+start)];
  return `<div class="review-score-group" role="group" aria-label="${escapeHtml(lang[field])}">${opts.map(v=>`<button type="button" class="review-score ${chosen===v?'selected':''}" data-review-score="${field}" data-review-value="${v===null?'':v}" aria-pressed="${chosen===v}">${v===null?'—':v}</button>`).join('')}</div><div class="review-ends"><small>${start===0?escapeHtml(lang.zero):'1'}</small><small>${start===0?'5':'5'}</small></div>`;
 }
-function reviewPromptFor(t,lang){
- const en=StudyI18n.language==='en',fence=String.fromCharCode(96).repeat(3);
- const output={difficulty:3,outcome:'partial',issue:'approach',issues:['approach','concept'],help_total:4,help_chatgpt:4,chatgpt_interventions:['hint','guiding_questions'],strength:'I identified the constraints.',weakness:'I needed guidance finding the pivot.',skill_gap:'Pivot selection',next_action:'Retry one example without hints.'};
- const rules=en
- ? 'Return EXACTLY one copyable fenced JSON code block, no prose. JSON fields are case-sensitive: difficulty INTEGER 1-5 (1 straightforward, 2 routine, 3 multi-step, 4 difficult non-obvious, 5 exceptional synthesis; never "high"/"medium"/"low"), outcome STRING correct/partial/incorrect or null, issue STRING concept/approach/calculation/implementation/instructions/careless/time/verification or null, issues ARRAY with 0-3 distinct issue codes and including issue if set, help_total and help_chatgpt INTEGERS 0-5 or null (0 none, 1 brief nudge, 2 small guidance, 3 several hints, 4 extensive assistance, 5 near-complete solution; ChatGPT help <= total help), chatgpt_interventions ARRAY with 0-3 distinct codes from verification/hint/guiding_questions/concept_explanation/approach_selection/step_by_step/debugging/calculation/code_generation/full_solution/error_identification, strength and weakness STRINGS max 200 characters or null, skill_gap STRING max 100 or null, next_action STRING max 160 or null. Unknown scalars = null; unknown lists = []. No invented claims, extra fields or translated JSON keys.'
- : 'Antworte mit genau einem kopierbaren JSON-Codeblock ohne Text. Exakte Feldnamen: difficulty GANZZAHL 1-5 (1 direkt, 2 Routine, 3 mehrstufig, 4 schwierig/nicht offensichtlich, 5 aussergewöhnlich anspruchsvoll; niemals high/medium/low), outcome STRING correct/partial/incorrect oder null, issue STRING concept/approach/calculation/implementation/instructions/careless/time/verification oder null, issues LISTE mit 0-3 verschiedenen Codes und issue muss enthalten sein, help_total und help_chatgpt GANZZAHLEN 0-5 oder null (0 keine, 1 winziger Hinweis, 2 etwas Hilfe, 3 mehrere Hinweise, 4 umfangreiche Hilfe, 5 fast vollständige Lösung; ChatGPT-Hilfe <= Gesamthilfe), chatgpt_interventions LISTE aus höchstens drei verschiedenen Codes verification/hint/guiding_questions/concept_explanation/approach_selection/step_by_step/debugging/calculation/code_generation/full_solution/error_identification, strength und weakness STRINGS maximal 200 Zeichen oder null, skill_gap STRING max 100 oder null, next_action STRING max 160 oder null. Unbekannte Einzelwerte null, unbelegte Listen []. Keine erfundenen Angaben, zusätzlichen oder übersetzten Schlüssel.';
- return [rules,'',fence+'json',JSON.stringify(output,null,2),fence,'',(en?'Exercise: ':'Übung: ')+(t.title||'-'),(en?'Details: ':'Beschreibung: ')+(t.description||'-'),en?'Paste your task, solution and relevant chat:':'Aufgabe, Lösung und relevanten Chat einfügen:','[ ... ]'].join('\n');
-}
+function reviewPromptFor(t,lang){return StudyExerciseReview.buildReviewPrompt(t,StudyI18n.language)}
 function renderReviewControls(){
  const l=reviewLang(), host=$('#review-fields');if(!host)return;
  host.innerHTML=`<label class="review-field">${l.difficulty}${scoreButtons('difficulty',1,l)}</label>
@@ -431,9 +424,9 @@ function renderReviewControls(){
 /* v4.3: human answers and GPT suggestions remain distinct. */
 function gptAssessmentFromDialog(){
  const raw=$('#review-json')?.value.trim()||'';
- if(!raw)return {data:reviewGptCleared?null:reviewGptDraft,error:null};
- try{return {data:StudyExerciseReview.parseFeedback(raw),error:null}}
- catch(e){return {data:null,error:e.message}}
+ if(!raw)return {data:reviewGptCleared?null:reviewGptDraft,error:null,saved:!reviewGptCleared&&!!reviewGptDraft};
+ try{return {data:StudyExerciseReview.parseFeedback(raw),error:null,saved:!!reviewGptDraft&&!reviewGptCleared&&raw===reviewGptOriginalText}}
+ catch(e){return {data:null,error:e.message,saved:false}}
 }
 function assessmentLabel(key,value){
  const en=StudyI18n.language==='en';
@@ -445,7 +438,19 @@ function assessmentLabel(key,value){
 function renderReviewComparison(){
  const host=$('#review-source-comparison');if(!host||!reviewDraft)return;
  const en=StudyI18n.language==='en',g=gptAssessmentFromDialog();
- const source=$('#review-gpt-status');if(source){source.textContent=g.error?(en?'JSON error: ':'JSON-Fehler: ')+g.error:($('#review-json')?.value.trim()?(en?'GPT preview — Save to keep it':'GPT-Vorschau — zum Sichern speichern'):(g.data?(en?'Saved GPT feedback':'Gespeichertes GPT-Feedback'):(en?'No GPT feedback yet':'Noch kein GPT-Feedback')));source.classList.toggle('error',!!g.error)}
+ const source=$('#review-gpt-status');
+ if(source){
+  const entered=!!$('#review-json')?.value.trim(),corePresent=REVIEW_FIELDS.some(k=>g.data?.[k]!=null);
+  let message=g.error?(en?'JSON error: ':'JSON-Fehler: ')+g.error
+   :reviewGptCleared&&!entered?(en?'GPT feedback will be removed when you save.':'GPT-Feedback wird beim Speichern gelöscht.')
+   :g.saved?(en?'Saved GPT feedback — stored separately from yours.':'Gespeichertes GPT-Feedback – getrennt von deiner Bewertung.')
+   :entered?(en?'Unsaved GPT preview — click Save GPT feedback below.':'Ungesicherte GPT-Vorschau – unten GPT-Feedback speichern.')
+   :g.data?(en?'Saved GPT feedback.':'Gespeichertes GPT-Feedback.')
+   :(en?'No GPT feedback yet.':'Noch kein GPT-Feedback.');
+  if(!g.error&&g.data&&!corePresent)message+=' '+(en?'No difficulty, outcome, issue or help ratings were supplied; those comparison cells are blank. Other feedback can still be saved.':'Keine Schwierigkeit, kein Ergebnis, Hauptproblem oder Hilfebewertungen vorhanden; diese Vergleichsfelder bleiben leer. Andere Angaben lassen sich trotzdem speichern.');
+  if(source.textContent!==message)source.textContent=message;
+  source.classList.toggle('error',!!g.error);
+ }
  const keys=REVIEW_FIELDS,labels=reviewLang();const cols=en?['My rating','ChatGPT rating']:['Meine Bewertung','ChatGPT-Bewertung'];
  host.innerHTML='<h3>'+(en?'Compare assessments':'Bewertungen vergleichen')+'</h3><div class="review-compare-head"><span></span><strong>'+cols[0]+'</strong><strong>'+cols[1]+'</strong><span></span></div>'+keys.map(k=>{
   const mine=reviewDraft[k],other=g.data?.[k]??null;
@@ -460,16 +465,17 @@ function enhanceReviewDialog(task){
  rating.classList.add('review-self-fields');
  const ai=form.querySelector('.review-ai');ai.open=true;
  ai.querySelector('summary').textContent=en?'2 · ChatGPT’s assessment':'2 · ChatGPT-Einschätzung';
- const old=ai.querySelector('.inside-hint');if(old)old.textContent=en?'GPT feedback is saved separately. It never silently replaces your values.':'GPT-Feedback wird separat gespeichert und ersetzt deine Werte nicht.';
+ const old=ai.querySelector('.inside-hint');if(old)old.textContent=en?'GPT feedback is saved separately after clicking Save. Your own rating is never replaced automatically.':'GPT-Feedback wird erst nach Klick auf Speichern separat abgelegt; deine Bewertung bleibt unverändert.';
  const prompt=$('#review-prompt');const details=document.createElement('details');details.className='review-prompt-details';
  const summary=document.createElement('summary');summary.textContent=en?'Show copyable prompt':'Kopierbaren Prompt anzeigen';details.append(summary);prompt.before(details);details.append(prompt);
  const paste=$('#review-json');paste.placeholder=en?'Paste actual ChatGPT JSON here…':'Tatsächliches ChatGPT-JSON hier einfügen…';
- const sample=JSON.stringify({difficulty:3,outcome:'partial',issue:'concept',help_total:4,help_chatgpt:4},null,2);
- paste.parentElement.insertAdjacentHTML('afterend','<div id="review-gpt-status" role="status" aria-live="polite"></div><div class="review-gpt-actions"><button type="button" class="btn outline" id="review-clear-gpt">'+(en?'Clear saved GPT feedback':'GPT-Feedback löschen')+'</button></div><details class="review-example"><summary>'+(en?'Example JSON (not saved)':'JSON-Beispiel (nicht gespeichert)')+'</summary><pre>'+escapeHtml(sample)+'</pre></details>');
+ const sample=JSON.stringify({difficulty:3,outcome:'partial',issue:'approach',issues:['approach'],help_total:2,help_chatgpt:2,chatgpt_interventions:['hint']},null,2);
+ paste.parentElement.insertAdjacentHTML('afterend','<div id="review-gpt-status" role="status" aria-live="polite"></div><div class="review-gpt-actions"><button type="submit" class="btn primary" id="review-save-gpt">'+(en?'Save GPT feedback':'GPT-Feedback speichern')+'</button><button type="button" class="btn outline" id="review-clear-gpt">'+(en?'Clear saved GPT feedback':'GPT-Feedback löschen')+'</button></div><details class="review-example"><summary>'+(en?'Example JSON (not saved)':'JSON-Beispiel (nicht gespeichert)')+'</summary><pre>'+escapeHtml(sample)+'</pre></details>');
  const apply=$('#review-apply');if(apply)apply.remove();
  form.querySelector('.modal-actions').insertAdjacentHTML('beforebegin','<section id="review-source-comparison" class="review-source-comparison"></section>');
  reviewGptDraft=task.exercise_review_gpt||null;reviewGptCleared=false;
- if(reviewGptDraft)paste.value=JSON.stringify(reviewGptDraft,null,2);
+ reviewGptOriginalText=reviewGptDraft?JSON.stringify(reviewGptDraft,null,2):'';
+ if(reviewGptDraft)paste.value=reviewGptOriginalText;
  renderReviewComparison();
 }
 
@@ -509,11 +515,33 @@ function openSubject(id=null){const s=id?subject(id):null;editId=id;modalColor=s
 
 function openSession(id=null){const s=id?state.sessions.find(x=>x.id===id):null;editId=id;modalTags=new Set(s?.tags||[]);const start=s?new Date(s.started_at):new Date(),date=dateKey(start),time=`${pad(start.getHours())}:${pad(start.getMinutes())}`;modalOpen('session',s?'Lerneinheit bearbeiten':'Zeit nachtragen','DEIN LERNJOURNAL',`<form id="session-form" class="modal-form"><div class="form-grid"><label>Fach<select id="f-s-subject">${subjectOptions(s?.subject_id||activeSubjects()[0]?.id)}</select></label><label>Aufgabe (optional)<select id="f-s-task"></select></label><label class="form-full">Titel<input id="f-s-title" value="${escapeHtml(s?.title||'')}" maxlength="180" placeholder="Was hast du gelernt?"></label><label>Datum<input id="f-s-date" type="date" required value="${date}"></label><label>Startzeit<input id="f-s-time" type="time" required value="${time}"></label><label>Fokus-Minuten<input id="f-s-minutes" type="number" required min="1" max="1440" value="${s?Math.round(s.duration_seconds/60):45}"></label><label>Kategorie<select id="f-s-category"><option value="">Ohne Kategorie</option>${state.tags.map(t=>`<option value="${escapeHtml(t.id)}" ${(s?(Object.prototype.hasOwnProperty.call(s,'category_tag_id')?s.category_tag_id:(s.tags||[])[0]):null)===t.id?'selected':''}>${escapeHtml(t.name)}</option>`).join('')}</select></label><div class="form-full"><label>Tags</label><div class="modal-tag-list" id="modal-tags">${modalTagHtml()}</div></div><label class="form-full">Notizen<textarea id="f-s-notes" maxlength="3000">${escapeHtml(s?.notes||'')}</textarea></label></div>${s?.break_seconds?`<div class="break-detail"><strong>${s.breaks?.length||0} Lernpause(n) · ${fmt(s.break_seconds)} gesamt</strong>${(s.breaks||[]).map((b,i)=>`<div><span>Pause ${i+1}</span><span>${new Date(b.started_at).toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'})} – ${new Date(b.ended_at).toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'})}</span><b>${fmt(b.duration_seconds)}</b></div>`).join('')}<small>Beim Bearbeiten bleiben diese Pausen unverändert.</small></div>`:''}<div class="modal-actions">${s?'<button type="button" class="btn danger" id="delete-modal-session">Löschen</button>':''}<span class="spacer"></span><button type="button" class="btn outline" data-modal-cancel>Abbrechen</button><button class="btn primary" type="submit">Speichern</button></div></form>`);populateSessionTasks(s?.task_id||null);$('#f-s-title').focus()}
 function populateSessionTasks(selected=null){const sid=$('#f-s-subject')?.value;if(!sid)return;$('#f-s-task').innerHTML='<option value="">Ohne Aufgabe</option>'+state.tasks.filter(t=>t.subject_id===sid).map(t=>`<option value="${t.id}">${escapeHtml(t.title)}</option>`).join('');if(selected)$('#f-s-task').value=selected}
+async function saveExerciseReview(){
+ if(reviewSaving)return false;
+ const g=gptAssessmentFromDialog(),en=StudyI18n.language==='en';
+ if(g.error){renderReviewComparison();toast((en?'Cannot save GPT feedback: ':'GPT-Feedback kann nicht gespeichert werden: ')+g.error,true);return false}
+ reviewSaving=true;
+ const buttons=[...document.querySelectorAll('#review-form button[type="submit"]')];
+ buttons.forEach(el=>{el.disabled=true});
+ const taskId=editId;
+ try{
+  const result=await mutate('/api/tasks/'+taskId+'/review','PATCH',{self:reviewDraft,gpt:g.data});
+  if(!result)return false;
+  const saved=result.state?.tasks?.find(t=>t.id===taskId)?.exercise_review_gpt??null;
+  if(!StudyExerciseReview.matchesPersistedFeedback(g.data,saved)){
+   const message=en?'GPT assessment was not confirmed in the saved task. Keep this dialog open and retry or report the error.':'GPT-Einschätzung wurde in der gespeicherten Aufgabe nicht bestätigt. Dialog geöffnet lassen und erneut versuchen oder Fehler melden.';
+   const source=$('#review-gpt-status');if(source){source.textContent=message;source.classList.add('error')}
+   toast(message,true);return false;
+  }
+  reviewGptDraft=saved;reviewGptOriginalText=saved?JSON.stringify(saved,null,2):'';reviewGptCleared=false;
+  modalClose();toast(en?'Assessments saved and GPT feedback verified.':'Bewertungen gespeichert und GPT-Feedback überprüft.');
+  return true;
+ }finally{
+  reviewSaving=false;
+  buttons.forEach(el=>{el.disabled=false});
+ }
+}
 async function handleModalSubmit(e){e.preventDefault();if(modalKind==='exercise-review'){
-  const g=gptAssessmentFromDialog();
-  if(g.error){toast((StudyI18n.language==='en'?'Cannot save GPT feedback: ':'GPT-Feedback kann nicht gespeichert werden: ')+g.error,true);return;}
-  if(await mutate('/api/tasks/'+editId+'/review','PATCH',{self:reviewDraft,gpt:g.data})){modalClose();toast(StudyI18n.language==='en'?'Both ratings saved.':'Beide Bewertungen gespeichert.')}
-  return;
+   await saveExerciseReview();return;
  }if(modalKind==='semester'){if(await mutate(editId?'/api/semesters/'+editId:'/api/semesters',editId?'PATCH':'POST',{name:$('#f-sem-name').value})){modalClose();toast('Semester gespeichert.')}}
  else if(modalKind==='task'){const body={title:$('#f-title').value,description:$('#f-description').value,next_action:$('#f-next-action').value,subject_id:$('#f-subject').value,planned_minutes:$('#f-estimate').value===''?null:Number($('#f-estimate').value),parent_id:$('#f-parent').value||null,status:$('#f-status').value,priority:$('#f-priority').value,due_date:$('#f-due').value||null,planned_for:$('#f-today').checked?(isTodayPinned(taskById(editId))?taskById(editId).planned_for:dateKey(new Date())):null,tags:[...modalTags]};if(await mutate(editId?'/api/tasks/'+editId:'/api/tasks',editId?'PATCH':'POST',body)){modalClose();toast(editId?'Aufgabe aktualisiert.':'Aufgabe erstellt.')}}
  else if(modalKind==='subject'){const body={name:$('#f-sub-name').value,semester_id:$('#f-sub-semester').value||null,weekly_goal_minutes:$('#f-sub-goal').value===''?null:Math.round(Number($('#f-sub-goal').value)*60),color:modalColor};if(editId)body.archived=$('#f-sub-archive').checked;if(await mutate(editId?'/api/subjects/'+editId:'/api/subjects',editId?'PATCH':'POST',body)){modalClose();toast('Fach gespeichert.')}}
@@ -550,7 +578,7 @@ function bind(){bindChartTooltips();hydrateIcons();StudyI18n.bind();$$('.nav-lin
   b=target.closest('[data-review-score]');if(b){reviewDraft[b.dataset.reviewScore]=b.dataset.reviewValue===''?null:Number(b.dataset.reviewValue);reviewManualFields.add(b.dataset.reviewScore);renderReviewControls();renderReviewComparison();}
   if(target.closest('#review-copy')){try{await navigator.clipboard.writeText(reviewPrompt);toast(StudyI18n.language==='en'?'Prompt copied.':'Prompt kopiert.')}catch{const f=$('#review-prompt');f.select();document.execCommand('copy');toast('Prompt kopiert.')}}
   b=target.closest('[data-review-use]');if(b){const v=gptAssessmentFromDialog();if(!v.error&&v.data?.[b.dataset.reviewUse]!=null){reviewDraft[b.dataset.reviewUse]=v.data[b.dataset.reviewUse];renderReviewControls();renderReviewComparison()}}
-  if(target.closest('#review-clear-gpt')){reviewGptDraft=null;reviewGptCleared=true;$('#review-json').value='';renderReviewComparison()}
+  if(target.closest('#review-clear-gpt')){reviewGptCleared=true;$('#review-json').value='';renderReviewComparison()}
   b=target.closest('[data-modal-cancel]');if(b)modalClose();
   b=target.closest('[data-modal-tag]');if(b){const id=b.dataset.modalTag;if(modalTags.has(id))modalTags.delete(id);else modalTags.add(id);b.classList.toggle('selected',modalTags.has(id))}
   b=target.closest('[data-color]');if(b)markColor(b.dataset.color);
